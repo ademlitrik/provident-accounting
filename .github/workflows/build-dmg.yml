@@ -1,0 +1,41 @@
+name: Build Provident macOS DMG Installer
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # Allows manual trigger from GitHub UI anytime
+
+jobs:
+  build-macos-dmg:
+    name: Build macOS DMG (Apple Silicon & Intel)
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Compile React Frontend
+        run: npm run build
+
+      - name: Build macOS DMG Package with Electron Builder
+        run: npx electron-builder --mac dmg --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Provident-Accounting-macOS-DMG
+          path: dist-electron/*.dmg
+          if-no-files-found: error

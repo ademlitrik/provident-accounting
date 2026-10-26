@@ -1,0 +1,153 @@
+name: Build & Release — Windows EXE + macOS DMG
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'           # Triggers on version tags like v1.0.0, v1.2.3
+  workflow_dispatch:       # Allows manual trigger from GitHub Actions UI
+
+permissions:
+  contents: write          # Required to create GitHub Releases and upload assets
+
+jobs:
+  # ──────────────────────────────────────────────
+  # JOB 1: Build macOS DMG (Universal Binary)
+  # ──────────────────────────────────────────────
+  build-macos:
+    name: 🍎 Build macOS DMG (Universal)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build React frontend (Vite)
+        run: npm run build
+
+      - name: Build macOS DMG (Intel x64 + Apple Silicon arm64)
+        run: npx electron-builder --mac dmg --x64 --arm64 --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List built DMG files
+        run: ls -lh dist-electron/*.dmg
+
+      - name: Upload macOS DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: dist-electron/*.dmg
+          if-no-files-found: error
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # JOB 2: Build Windows NSIS Installer
+  # ──────────────────────────────────────────────
+  build-windows:
+    name: 🪟 Build Windows Installer (EXE)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build React frontend (Vite)
+        run: npm run build
+
+      - name: Build Windows NSIS Installer
+        run: npx electron-builder --win nsis --x64 --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List built EXE files
+        run: Get-ChildItem dist-electron\*.exe | Format-Table Name, Length
+        shell: pwsh
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: dist-electron/*.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # JOB 3: Create GitHub Release with both assets
+  # (only runs on version tag push)
+  # ──────────────────────────────────────────────
+  release:
+    name: 🚀 Publish GitHub Release
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download macOS DMG artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-dmg
+          path: release-assets/
+
+      - name: Download Windows EXE artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: release-assets/
+
+      - name: List release assets
+        run: ls -lh release-assets/
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release and upload installers
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: "Provident Accounting ${{ steps.version.outputs.VERSION }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## Provident Accounting & Audit Suite ${{ steps.version.outputs.VERSION }}
+
+            ### 📥 Download Installers
+
+            | Platform | File | Notes |
+            |----------|------|-------|
+            | **Windows** | `Provident Accounting Setup *.exe` | x64, Windows 10/11 |
+            | **macOS** | `Provident Accounting-*.dmg` | Universal (Intel + Apple Silicon) |
+
+            ### 🔐 Default Login
+            - **Email:** `info@pfconsultants.co.za`
+            - **Password:** `admin@123`
+
+            ### 🏢 Developed by
+            [Tanyaradzwa Livingstone Bvute](https://github.com/ademlitrik) · Afro Vision Media  
+            Built for [Provident Financial Consultants](https://pfconsultants.co.za/)
+
+          files: release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

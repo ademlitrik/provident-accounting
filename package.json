@@ -1,0 +1,109 @@
+{
+  "name": "provident",
+  "version": "1.0.0",
+  "description": "Provident Accounting Software — Modern AI-Powered Accounting",
+  "author": "Afro Vision Media",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run vite\" \"npm run electron:dev\"",
+    "vite": "vite",
+    "electron:dev": "wait-on http://localhost:5175 && cross-env NODE_ENV=development electron .",
+    "build": "vite build",
+    "build:win": "npm run build && electron-builder --win",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:all": "npm run build && electron-builder --win --mac",
+    "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.provident.accounting",
+    "productName": "Provident Accounting",
+    "copyright": "Copyright © 2025 Provident Accounting",
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "public/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icon.ico"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "public/icon.png",
+      "category": "public.app-category.finance",
+      "darkModeSupport": true,
+      "minimumSystemVersion": "11.0"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "public/icon.ico",
+      "installerHeaderIcon": "public/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "dmg": {
+      "title": "Provident Accounting",
+      "backgroundColor": "#0f172a",
+      "window": {
+        "width": 600,
+        "height": 400
+      }
+    }
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-query": "^5.104.5",
+    "better-sqlite3": "^13.0.3",
+    "date-fns": "^4.4.0",
+    "framer-motion": "^14.6.0",
+    "i18next": "^26.5.11",
+    "jszip": "^3.10.2",
+    "lucide-react": "^1.61.0",
+    "papaparse": "^5.7.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-i18next": "^17.1.9",
+    "react-router-dom": "^7.18.4",
+    "recharts": "^3.10.1",
+    "zustand": "^5.0.16"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "autoprefixer": "^10.6.1",
+    "concurrently": "^10.0.6",
+    "cross-env": "^10.1.0",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0",
+    "oxlint": "^1.88.0",
+    "postcss": "^8.5.31",
+    "tailwindcss": "^3.4.19",
+    "vite": "^8.3.4",
+    "wait-on": "^9.5.1"
+  }
+}

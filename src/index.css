@@ -1,0 +1,151 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    font-family: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #F8FAFC;
+    color: #0F172A;
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  input, select, textarea {
+    font-family: inherit;
+    user-select: text !important;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   COMPREHENSIVE DESKTOP AUDIT & FINANCIAL PRINT SETTINGS
+   Ensures multi-page continuous flow, strips shell chrome,
+   and formats tables & lead schedules for professional A4 print
+   ───────────────────────────────────────────────────────────── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 1.2cm 1cm 1.2cm 1cm;
+  }
+
+  /* Reset layout constraints to allow multi-page document printing */
+  html, body, #root, div[class*="h-screen"], div[class*="w-screen"], div[class*="overflow-hidden"], main {
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    width: 100% !important;
+    overflow: visible !important;
+    position: static !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  body {
+    font-size: 10.5pt !important;
+    line-height: 1.35 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide application desktop shell chrome & interactive buttons */
+  header, nav, aside, footer,
+  .print-hide,
+  .no-print,
+  button,
+  input:not([type="checkbox"]),
+  select,
+  .fixed,
+  [role="dialog"],
+  #global-search-input {
+    display: none !important;
+  }
+
+  /* Ensure main view container expands without paddings */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    background: transparent !important;
+  }
+
+  /* Table layout for clean multi-page pagination */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  tr, .avoid-break, .print-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th, td {
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+  }
+
+  /* Remove dark theme backgrounds for print */
+  .dark, [class*="dark:"] {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  /* Headings avoid breaking away from following content */
+  h1, h2, h3, h4 {
+    color: #0f172a !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Links render clean without URLs displayed */
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}
