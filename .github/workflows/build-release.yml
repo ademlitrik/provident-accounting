@@ -1,13 +1,13 @@
-name: Build & Release — Windows EXE + macOS DMG
+name: Build & Release — Windows EXE + macOS DMG (+ ZIP packages)
 
 on:
   push:
     tags:
-      - 'v*.*.*'           # Triggers on version tags like v1.0.0, v1.2.3
-  workflow_dispatch:       # Allows manual trigger from GitHub Actions UI
+      - 'v*.*.*'
+  workflow_dispatch:
 
 permissions:
-  contents: write          # Required to create GitHub Releases and upload assets
+  contents: write
 
 jobs:
   # ──────────────────────────────────────────────
@@ -38,8 +38,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: List built DMG files
-        run: ls -lh dist-electron/*.dmg
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create ZIP of macOS DMG
+        run: |
+          cd dist-electron
+          DMG=$(ls *.dmg | head -1)
+          zip "Provident-Accounting-macOS-${{ steps.version.outputs.VERSION }}.zip" "$DMG"
+          echo "DMG_FILE=$DMG" >> $GITHUB_ENV
+
+      - name: List release assets
+        run: ls -lh dist-electron/*.dmg dist-electron/*.zip
 
       - name: Upload macOS DMG artifact
         uses: actions/upload-artifact@v4
@@ -49,11 +60,19 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Upload macOS ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-zip
+          path: dist-electron/*.zip
+          if-no-files-found: error
+          retention-days: 7
+
   # ──────────────────────────────────────────────
-  # JOB 2: Build Windows NSIS Installer
+  # JOB 2: Build Windows NSIS Installer + ZIP
   # ──────────────────────────────────────────────
   build-windows:
-    name: 🪟 Build Windows Installer (EXE)
+    name: 🪟 Build Windows Installer (EXE + ZIP)
     runs-on: windows-latest
 
     steps:
@@ -77,11 +96,25 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: List built EXE files
-        run: Get-ChildItem dist-electron\*.exe | Format-Table Name, Length
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=$($env:GITHUB_REF -replace 'refs/tags/','')" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
-      - name: Upload Windows installer artifact
+      - name: Create ZIP of Windows EXE
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist-electron\*.exe | Select-Object -First 1
+          $zipName = "dist-electron\Provident-Accounting-Windows-${{ steps.version.outputs.VERSION }}.zip"
+          Compress-Archive -Path $exe.FullName -DestinationPath $zipName -Force
+          Write-Host "Created: $zipName"
+          Get-Item $zipName | Format-Table Name, @{N='Size MB';E={[math]::Round($_.Length/1MB,1)}}
+
+      - name: List built assets
+        shell: pwsh
+        run: Get-ChildItem dist-electron\*.exe, dist-electron\*.zip | Format-Table Name, @{N='Size MB';E={[math]::Round($_.Length/1MB,1)}}
+
+      - name: Upload Windows EXE artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-exe
@@ -89,12 +122,20 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Upload Windows ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-zip
+          path: dist-electron/*.zip
+          if-no-files-found: error
+          retention-days: 7
+
   # ──────────────────────────────────────────────
-  # JOB 3: Create GitHub Release with both assets
-  # (only runs on version tag push)
+  # JOB 3: Create GitHub Release — attach all 4 files
+  # DMG + DMG.zip + EXE + EXE.zip
   # ──────────────────────────────────────────────
   release:
-    name: 🚀 Publish GitHub Release
+    name: 🚀 Publish GitHub Release (all formats)
     needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
@@ -103,26 +144,38 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download macOS DMG artifact
+      - name: Download macOS DMG
         uses: actions/download-artifact@v4
         with:
           name: macos-dmg
           path: release-assets/
 
-      - name: Download Windows EXE artifact
+      - name: Download macOS ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-zip
+          path: release-assets/
+
+      - name: Download Windows EXE
         uses: actions/download-artifact@v4
         with:
           name: windows-exe
           path: release-assets/
 
-      - name: List release assets
+      - name: Download Windows ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-zip
+          path: release-assets/
+
+      - name: List all release assets
         run: ls -lh release-assets/
 
       - name: Extract version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release and upload installers
+      - name: Create GitHub Release with all installers
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.VERSION }}
@@ -135,17 +188,23 @@ jobs:
 
             ### 📥 Download Installers
 
-            | Platform | File | Notes |
-            |----------|------|-------|
-            | **Windows** | `Provident Accounting Setup *.exe` | x64, Windows 10/11 |
-            | **macOS** | `Provident Accounting-*.dmg` | Universal (Intel + Apple Silicon) |
+            | Platform | Format | File | Notes |
+            |----------|--------|------|-------|
+            | **Windows** | Installer | `Provident Accounting Setup *.exe` | Recommended — direct install |
+            | **Windows** | ZIP | `Provident-Accounting-Windows-*.zip` | Portable archive |
+            | **macOS** | DMG | `Provident Accounting-*.dmg` | Recommended — drag to Applications |
+            | **macOS** | ZIP | `Provident-Accounting-macOS-*.zip` | ZIP archive of DMG |
+
+            > **macOS note:** Right-click → Open on first launch if macOS shows an unverified developer warning.
 
             ### 🔐 Default Login
-            - **Email:** `info@pfconsultants.co.za`
-            - **Password:** `admin@123`
+            | | |
+            |--|--|
+            | **Email** | `info@pfconsultants.co.za` |
+            | **Password** | `admin@123` |
 
             ### 🏢 Developed by
-            [Tanyaradzwa Livingstone Bvute](https://github.com/ademlitrik) · Afro Vision Media  
+            [Tanyaradzwa Livingstone Bvute](https://github.com/ademlitrik) · **Afro Vision Media**  
             Built for [Provident Financial Consultants](https://pfconsultants.co.za/)
 
           files: release-assets/*
