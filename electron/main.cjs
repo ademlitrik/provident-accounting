@@ -3,12 +3,20 @@ const path = require('path');
 const fs = require('fs');
 const isDev = process.env.NODE_ENV === 'development';
 
-// ── React DevTools (development only) ────────────────────────────────────────
+// ── React DevTools (development only, optional with graceful fallback) ────────
 if (!app.isPackaged) {
-  const { default: installExtension, REACT_DEVELOPER_TOOLS } = require('electron-devtools-installer');
-  installExtension(REACT_DEVELOPER_TOOLS)
-    .then((name) => console.log(`Added Extension: ${name}`))
-    .catch((err) => console.log('An error occurred: ', err));
+  try {
+    const devtools = require('electron-devtools-installer');
+    const installExtension = devtools.default || devtools;
+    const { REACT_DEVELOPER_TOOLS } = devtools;
+    if (installExtension && REACT_DEVELOPER_TOOLS) {
+      installExtension(REACT_DEVELOPER_TOOLS)
+        .then((name) => console.log(`Added Extension: ${name}`))
+        .catch((err) => console.log('DevTools extension skipped: ', err?.message || err));
+    }
+  } catch (_) {
+    console.log('electron-devtools-installer not installed, skipping devtools injection.');
+  }
 }
 
 
