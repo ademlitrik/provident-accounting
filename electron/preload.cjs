@@ -5,6 +5,12 @@ contextBridge.exposeInMainWorld('provident', {
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
   close: () => ipcRenderer.send('window-close'),
+  isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
+  onMaximizedChange: (callback) => {
+    const handler = (event, isMax) => callback(isMax);
+    ipcRenderer.on('window-is-maximized', handler);
+    return () => ipcRenderer.removeListener('window-is-maximized', handler);
+  },
 
   // File dialogs
   openFile: (options) => ipcRenderer.invoke('dialog:open-file', options),

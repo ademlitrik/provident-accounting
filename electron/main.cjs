@@ -342,6 +342,13 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
+
+  mainWindow.on('maximize', () => {
+    mainWindow?.webContents.send('window-is-maximized', true);
+  });
+  mainWindow.on('unmaximize', () => {
+    mainWindow?.webContents.send('window-is-maximized', false);
+  });
 }
 
 app.whenReady().then(() => {
@@ -370,6 +377,7 @@ ipcMain.on('window-maximize', () => {
   else mainWindow?.maximize();
 });
 ipcMain.on('window-close', () => mainWindow?.close());
+ipcMain.handle('window:is-maximized', () => mainWindow?.isMaximized() || false);
 
 // ── File dialogs ─────────────────────────────────────────────────────────────
 ipcMain.handle('dialog:open-file', async (_, options) => {

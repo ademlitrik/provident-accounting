@@ -74,96 +74,82 @@ const INITIAL_CLIENTS = [
   },
 ]
 
-const INITIAL_ACCOUNTS = [
-  { code: '1000', name: 'Cash and Cash Equivalents', type: 'Asset', sub: 'Current Assets', balance: 284500, clientId: 1 },
-  { code: '1100', name: 'Trade and Other Receivables', type: 'Asset', sub: 'Current Assets', balance: 156300, clientId: 1 },
-  { code: '1200', name: 'Merchandise Inventory at Cost', type: 'Asset', sub: 'Current Assets', balance: 93400, clientId: 1 },
-  { code: '1500', name: 'Property, Plant & Equipment (Gross)', type: 'Asset', sub: 'Non-Current Assets', balance: 620000, clientId: 1 },
-  { code: '1510', name: 'Accumulated Depreciation - Plant', type: 'Asset', sub: 'Non-Current Assets', balance: -184000, clientId: 1 },
-  { code: '2000', name: 'Trade and Other Payables', type: 'Liability', sub: 'Current Liabilities', balance: -89700, clientId: 1 },
-  { code: '2100', name: 'Short-term Borrowings (Working Capital)', type: 'Liability', sub: 'Current Liabilities', balance: -50000, clientId: 1 },
-  { code: '2500', name: 'Long-term Bank Facilities', type: 'Liability', sub: 'Non-Current Liabilities', balance: -230000, clientId: 1 },
-  { code: '3000', name: 'Ordinary Share Capital', type: 'Equity', sub: 'Shareholder Capital', balance: -300000, clientId: 1 },
-  { code: '3100', name: 'Retained Earnings (Accumulated Reserves)', type: 'Equity', sub: 'Retained Reserves', balance: -62500, clientId: 1 },
-  { code: '4000', name: 'Operating Sales Revenue', type: 'Income', sub: 'Operating Revenue', balance: -654000, clientId: 1 },
-  { code: '4100', name: 'Professional Advisory Fee Income', type: 'Income', sub: 'Operating Revenue', balance: -87500, clientId: 1 },
-  { code: '5000', name: 'Direct Cost of Merchandise Sold', type: 'Expense', sub: 'Direct Costs', balance: 312000, clientId: 1 },
-  { code: '5100', name: 'Salaries, Wages & Employee Benefits', type: 'Expense', sub: 'Operating Expenses', balance: 144000, clientId: 1 },
-  { code: '5200', name: 'Premises Lease Rentals', type: 'Expense', sub: 'Operating Expenses', balance: 33000, clientId: 1 },
-  { code: '5300', name: 'Administrative & Office Operating Expenses', type: 'Expense', sub: 'Operating Expenses', balance: 8500, clientId: 1 },
-  { code: '5400', name: 'Depreciation & Amortization Expense', type: 'Expense', sub: 'Operating Expenses', balance: 14400, clientId: 1 },
-  { code: '5500', name: 'Digital Advertising & Marketing Expenses', type: 'Expense', sub: 'Operating Expenses', balance: 12400, clientId: 1 },
-  { code: '5600', name: 'Municipal Utilities, Power & Telecoms', type: 'Expense', sub: 'Operating Expenses', balance: 4200, clientId: 1 },
-]
+export const buildStarterDataForClient = (clientId, clientName = 'Engagement Entity', multiplier = 1) => {
+  const m = multiplier;
+  const accounts = [
+    { code: '1000', name: 'Cash and Cash Equivalents', type: 'Asset', sub: 'Current Assets', balance: Math.round(284500 * m), clientId },
+    { code: '1100', name: 'Trade and Other Receivables', type: 'Asset', sub: 'Current Assets', balance: Math.round(156300 * m), clientId },
+    { code: '1200', name: 'Merchandise Inventory at Cost', type: 'Asset', sub: 'Current Assets', balance: Math.round(93400 * m), clientId },
+    { code: '1300', name: 'Prepayments & Deposits', type: 'Asset', sub: 'Current Assets', balance: Math.round(12000 * m), clientId },
+    { code: '1500', name: 'Property, Plant & Equipment (Gross)', type: 'Asset', sub: 'Non-Current Assets', balance: Math.round(620000 * m), clientId },
+    { code: '1510', name: 'Accumulated Depreciation - Plant', type: 'Asset', sub: 'Non-Current Assets', balance: Math.round(-184000 * m), clientId },
+    { code: '2000', name: 'Trade and Other Payables', type: 'Liability', sub: 'Current Liabilities', balance: Math.round(-89700 * m), clientId },
+    { code: '2100', name: 'Short-term Borrowings (Working Capital)', type: 'Liability', sub: 'Current Liabilities', balance: Math.round(-50000 * m), clientId },
+    { code: '2200', name: 'VAT Output Payable', type: 'Liability', sub: 'Current Liabilities', balance: Math.round(-15500 * m), clientId },
+    { code: '2500', name: 'Long-term Bank Facilities', type: 'Liability', sub: 'Non-Current Liabilities', balance: Math.round(-230000 * m), clientId },
+    { code: '3000', name: 'Ordinary Share Capital', type: 'Equity', sub: 'Shareholder Capital', balance: Math.round(-300000 * m), clientId },
+    { code: '3100', name: 'Retained Earnings (Accumulated Reserves)', type: 'Equity', sub: 'Retained Reserves', balance: Math.round(-62500 * m), clientId },
+    { code: '4000', name: 'Operating Sales Revenue', type: 'Income', sub: 'Operating Revenue', balance: Math.round(-654000 * m), clientId },
+    { code: '4100', name: 'Professional Advisory Fee Income', type: 'Income', sub: 'Operating Revenue', balance: Math.round(-87500 * m), clientId },
+    { code: '5000', name: 'Direct Cost of Merchandise Sold', type: 'Expense', sub: 'Direct Costs', balance: Math.round(312000 * m), clientId },
+    { code: '5100', name: 'Salaries, Wages & Employee Benefits', type: 'Expense', sub: 'Operating Expenses', balance: Math.round(144000 * m), clientId },
+    { code: '5200', name: 'Premises Lease Rentals', type: 'Expense', sub: 'Operating Expenses', balance: Math.round(33000 * m), clientId },
+    { code: '5300', name: 'Administrative & Office Operating Expenses', type: 'Expense', sub: 'Operating Expenses', balance: Math.round(8500 * m), clientId },
+    { code: '5400', name: 'Depreciation & Amortization Expense', type: 'Expense', sub: 'Operating Expenses', balance: Math.round(14400 * m), clientId },
+    { code: '5500', name: 'Digital Advertising & Marketing Expenses', type: 'Expense', sub: 'Operating Expenses', balance: Math.round(12400 * m), clientId },
+    { code: '5600', name: 'Municipal Utilities, Power & Telecoms', type: 'Expense', sub: 'Operating Expenses', balance: Math.round(4200 * m), clientId },
+  ];
 
-const INITIAL_JOURNALS = [
-  { id: 'JE-1041', date: '2024-10-25', description: 'Monthly Sales Revenue Recognized - Acme Corp', debit: '1100 Trade Receivables', credit: '4000 Sales Revenue', amount: 12400, status: 'Posted', author: '', clientId: 1 },
-  { id: 'JE-1040', date: '2024-10-24', description: 'Office Consumables & Stationary Supplies', debit: '5300 Office Expenses', credit: '1000 Cash Equivalents', amount: 840, status: 'Posted', author: '', clientId: 1 },
-  { id: 'JE-1039', date: '2024-10-23', description: 'Staff Payroll Disbursement - October 2024', debit: '5100 Salaries Expense', credit: '1000 Cash Equivalents', amount: 48000, status: 'Posted', author: '', clientId: 1 },
-  { id: 'JE-1038', date: '2024-10-22', description: 'Consulting Advisory Retainer - Beta Technologies', debit: '1100 Trade Receivables', credit: '4100 Consulting Revenue', amount: 8750, status: 'Posted', author: '', clientId: 1 },
-  { id: 'JE-1037', date: '2024-10-21', description: 'Premises Lease Rental Oct - Suite 400', debit: '5200 Rent Expense', credit: '1000 Cash Equivalents', amount: 5500, status: 'Posted', author: '', clientId: 1 },
-  { id: 'JE-1036', date: '2024-10-20', description: 'Depreciation Provision - Office Machinery', debit: '5400 Depreciation Expense', credit: '1510 Acc. Depreciation', amount: 1200, status: 'Posted', author: '', clientId: 1 },
-]
+  const journals = [
+    { id: `JE-${clientId}01`, date: '2024-10-25', description: `Monthly Sales Revenue Recognized - ${clientName}`, debit: '1100 Trade Receivables', credit: '4000 Sales Revenue', amount: Math.round(12400 * m), status: 'Posted', author: 'Senior Partner', clientId },
+    { id: `JE-${clientId}02`, date: '2024-10-24', description: 'Office Consumables & Operational Supplies', debit: '5300 Office Expenses', credit: '1000 Cash Equivalents', amount: Math.round(840 * m), status: 'Posted', author: 'Senior Partner', clientId },
+    { id: `JE-${clientId}03`, date: '2024-10-23', description: 'Staff Payroll Disbursement - October', debit: '5100 Salaries Expense', credit: '1000 Cash Equivalents', amount: Math.round(48000 * m), status: 'Posted', author: 'Senior Partner', clientId },
+    { id: `JE-${clientId}04`, date: '2024-10-22', description: 'Professional Advisory Fee Retainer', debit: '1100 Trade Receivables', credit: '4100 Consulting Revenue', amount: Math.round(8750 * m), status: 'Posted', author: 'Senior Partner', clientId },
+    { id: `JE-${clientId}05`, date: '2024-10-21', description: 'Premises Lease Rental - Operating Unit', debit: '5200 Rent Expense', credit: '1000 Cash Equivalents', amount: Math.round(5500 * m), status: 'Posted', author: 'Senior Partner', clientId },
+    { id: `JE-${clientId}06`, date: '2024-10-20', description: 'Depreciation Provision - Office Machinery', debit: '5400 Depreciation Expense', credit: '1510 Acc. Depreciation', amount: Math.round(1200 * m), status: 'Posted', author: 'Senior Partner', clientId },
+  ];
 
-const INITIAL_PAPERS = [
-  { id: 'WP-001', clientId: 1, section: 'Revenue', title: 'Lead Schedule — Operating Sales & Retainer Revenue', assignee: 'Jane Doe', status: 'Complete', risk: 'Low', balance: '$741,500' },
-  { id: 'WP-002', clientId: 1, section: 'Cash', title: 'Bank Reconciliation & Confirmation Letter', assignee: 'John Smith', status: 'In Progress', risk: 'Medium', balance: '$284,500' },
-  { id: 'WP-003', clientId: 1, section: 'Receivables', title: 'Debtors Ledger Ageing & Bad Debt Recoverability', assignee: 'Jane Doe', status: 'Not Started', risk: 'High', balance: '$156,300' },
-  { id: 'WP-004', clientId: 1, section: 'Fixed Assets', title: 'Plant, Machinery & Office Asset Verification', assignee: 'John Smith', status: 'Complete', risk: 'Low', balance: '$436,000' },
-  { id: 'WP-005', clientId: 1, section: 'Taxation', title: 'Corporate Income Tax Assessment & Deferred Tax', assignee: 'Admin User', status: 'In Progress', risk: 'Medium', balance: '$28,500' },
-  { id: 'WP-006', clientId: 1, section: 'Liabilities', title: 'Long-term Bank Facilities & Covenant Review', assignee: 'Admin User', status: 'Complete', risk: 'Low', balance: '$230,000' },
-]
+  const bankItems = [
+    { id: parseInt(`${clientId}01`), clientId, date: '2024-10-28', desc: `Client Settlement Wire: ${clientName}`, amount: Math.round(-12400 * m), ref: `EFT-${clientId}912`, matched: true, matchRef: `JE-${clientId}01` },
+    { id: parseInt(`${clientId}02`), clientId, date: '2024-10-25', desc: 'Equipment Depreciation Amortization', amount: Math.round(-1200 * m), ref: `SYS-${clientId}02`, matched: true, matchRef: `JE-${clientId}06` },
+    { id: parseInt(`${clientId}03`), clientId, date: '2024-10-20', desc: 'Stationery & Consumables Order', amount: Math.round(-840 * m), ref: `EFT-${clientId}910`, matched: true, matchRef: `JE-${clientId}02` },
+    { id: parseInt(`${clientId}04`), clientId, date: '2024-10-15', desc: 'Premises Operating Lease Rental', amount: Math.round(-5500 * m), ref: `EFT-${clientId}909`, matched: true, matchRef: `JE-${clientId}05` },
+    { id: parseInt(`${clientId}05`), clientId, date: '2024-10-10', desc: 'Staff Payroll Disbursement', amount: Math.round(-48000 * m), ref: `EFT-${clientId}908`, matched: true, matchRef: `JE-${clientId}03` },
+    { id: parseInt(`${clientId}06`), clientId, date: '2024-10-08', desc: 'Customer Invoice Receipt', amount: Math.round(8750 * m), ref: `DEP-${clientId}234`, matched: false, matchRef: null },
+    { id: parseInt(`${clientId}07`), clientId, date: '2024-10-05', desc: 'Trade Inflow Settlement', amount: Math.round(91000 * m), ref: `DEP-${clientId}233`, matched: false, matchRef: null },
+    { id: parseInt(`${clientId}08`), clientId, date: '2024-10-02', desc: 'Banking Administration Charges', amount: Math.round(-125 * m), ref: `FEE-${clientId}`, matched: false, matchRef: null },
+    { id: parseInt(`${clientId}09`), clientId, date: '2024-10-01', desc: 'Monthly Deposit Interest Accrued', amount: Math.round(340 * m), ref: `INT-${clientId}`, matched: false, matchRef: null },
+  ];
 
-const INITIAL_DOCUMENTS = [
-  {
-    id: 'DOC-001',
-    clientId: 1,
-    name: 'First_National_Bank_Oct2024_Statement.pdf',
-    type: 'PDF',
-    size: '1.4 MB',
-    date: '2024-10-29',
-    category: 'Bank Statements',
-    wpRef: 'WP-002',
-    ocrStatus: 'Processed',
-    extracted: 'Closing Balance: $284,500.00 | Total Inflows: $99,750.00 | Total Outflows: $67,965.00'
-  },
-  {
-    id: 'DOC-002',
-    clientId: 1,
-    name: 'Acme_Office_Lease_Agreement_2024.pdf',
-    type: 'PDF',
-    size: '3.8 MB',
-    date: '2024-01-15',
-    category: 'Contracts & Leases',
-    wpRef: 'WP-004',
-    ocrStatus: 'Processed',
-    extracted: 'Premises: Suite 400 | Monthly Rental: $5,500.00 | Term: 36 Months | Escalation: 5% p.a.'
-  },
-  {
-    id: 'DOC-003',
-    clientId: 1,
-    name: 'Tax_Clearance_Certificate_FY2024.pdf',
-    type: 'PDF',
-    size: '420 KB',
-    date: '2024-09-02',
-    category: 'Statutory & Tax',
-    wpRef: 'WP-005',
-    ocrStatus: 'Processed',
-    extracted: 'PIN: 9823471029 | Status: In Good Standing | Expiry: 2025-09-01'
-  },
-  {
-    id: 'DOC-004',
-    clientId: 1,
-    name: 'Oct_Digital_Marketing_Invoice_INV-8812.png',
-    type: 'Image',
-    size: '890 KB',
-    date: '2024-10-28',
-    category: 'Invoices & Receipts',
-    wpRef: 'WP-001',
-    ocrStatus: 'Processed',
-    extracted: 'Supplier: Apex Media Group | Inv #: INV-8812 | Total Due: $12,400.00 | VAT: $0.00'
-  },
-]
+  const workingPapers = [
+    { id: `WP-${clientId}01`, clientId, section: 'Revenue', title: `Lead Schedule — Operating Sales & Retainer Revenue`, assignee: 'Lead Auditor', status: 'Complete', risk: 'Low', balance: `R ${(741500 * m).toLocaleString()}` },
+    { id: `WP-${clientId}02`, clientId, section: 'Cash', title: 'Bank Reconciliation & Confirmation Certificates', assignee: 'Audit Senior', status: 'In Progress', risk: 'Medium', balance: `R ${(284500 * m).toLocaleString()}` },
+    { id: `WP-${clientId}03`, clientId, section: 'Receivables', title: 'Debtors Ledger Ageing & Recoverability Assessment', assignee: 'Lead Auditor', status: 'Not Started', risk: 'High', balance: `R ${(156300 * m).toLocaleString()}` },
+    { id: `WP-${clientId}04`, clientId, section: 'Fixed Assets', title: 'Plant, Machinery & Office Asset Verification Register', assignee: 'Audit Senior', status: 'Complete', risk: 'Low', balance: `R ${(436000 * m).toLocaleString()}` },
+    { id: `WP-${clientId}05`, clientId, section: 'Taxation', title: 'Corporate Income Tax Assessment & Deferred Tax', assignee: 'Tax Specialist', status: 'In Progress', risk: 'Medium', balance: `R ${(28500 * m).toLocaleString()}` },
+    { id: `WP-${clientId}06`, clientId, section: 'Liabilities', title: 'Long-term Bank Facilities & Covenant Review', assignee: 'Audit Partner', status: 'Complete', risk: 'Low', balance: `R ${(230000 * m).toLocaleString()}` },
+  ];
+
+  const documents = [
+    { id: `DOC-${clientId}01`, clientId, name: `${clientName.replace(/[^a-zA-Z0-9]/g, '_')}_Bank_Statement_Oct2024.pdf`, type: 'PDF', size: '1.4 MB', date: '2024-10-29', category: 'Bank Statements', wpRef: `WP-${clientId}02`, ocrStatus: 'Processed', extracted: `Verified digital bank statement for ${clientName}. Closing balance agreed.` },
+    { id: `DOC-${clientId}02`, clientId, name: `${clientName.replace(/[^a-zA-Z0-9]/g, '_')}_Commercial_Lease_Agreement.pdf`, type: 'PDF', size: '2.8 MB', date: '2024-01-15', category: 'Contracts & Leases', wpRef: `WP-${clientId}04`, ocrStatus: 'Processed', extracted: `Standard commercial lease. Monthly rental agreed to GL account 5200.` },
+    { id: `DOC-${clientId}03`, clientId, name: `${clientName.replace(/[^a-zA-Z0-9]/g, '_')}_Tax_Clearance_Pin.pdf`, type: 'PDF', size: '380 KB', date: '2024-09-02', category: 'Statutory Tax', wpRef: `WP-${clientId}05`, ocrStatus: 'Processed', extracted: `SARS Tax Compliance Pin Verified: Status: Compliant.` },
+  ];
+
+  return { accounts, journals, bankItems, workingPapers, documents };
+};
+
+const c1 = buildStarterDataForClient(1, 'Acme Corporation (Pty) Ltd', 1);
+const c2 = buildStarterDataForClient(2, 'Beta Technologies Ltd', 1.25);
+const c3 = buildStarterDataForClient(3, 'Gamma Industries Inc', 0.85);
+const c4 = buildStarterDataForClient(4, 'Delta Consulting Group', 1.5);
+const c5 = buildStarterDataForClient(5, 'Epsilon Ventures (Pty) Ltd', 0.95);
+
+const INITIAL_ACCOUNTS = [...c1.accounts, ...c2.accounts, ...c3.accounts, ...c4.accounts, ...c5.accounts];
+const INITIAL_JOURNALS = [...c1.journals, ...c2.journals, ...c3.journals, ...c4.journals, ...c5.journals];
+const INITIAL_PAPERS = [...c1.workingPapers, ...c2.workingPapers, ...c3.workingPapers, ...c4.workingPapers, ...c5.workingPapers];
+const INITIAL_DOCUMENTS = [...c1.documents, ...c2.documents, ...c3.documents, ...c4.documents, ...c5.documents];
+const INITIAL_BANK_ITEMS = [...c1.bankItems, ...c2.bankItems, ...c3.bankItems, ...c4.bankItems, ...c5.bankItems];
 
 const INITIAL_RECENT_ENGAGEMENTS = [
   { id: 1, name: 'Acme Corporation (Pty) Ltd', location: 'Johannesburg, South Africa', fyEnd: '31 Dec 2024', lastOpened: 'Just now' },
@@ -177,18 +163,6 @@ const INITIAL_RECENT_DOCUMENTS = [
   { id: 'DOC-002', name: 'Acme_Office_Lease_Agreement_2024.pdf', type: 'Contract & Lease', wpRef: 'WP-004', date: '2024-01-15', size: '3.8 MB' },
   { id: 'DOC-003', name: 'Tax_Clearance_Certificate_FY2024.pdf', type: 'Statutory Tax', wpRef: 'WP-005', date: '2024-09-02', size: '420 KB' },
   { id: 'DOC-004', name: 'Oct_Digital_Marketing_Invoice_INV-8812.png', type: 'Audit Voucher', wpRef: 'WP-001', date: '2024-10-28', size: '890 KB' },
-]
-
-const INITIAL_BANK_ITEMS = [
-  { id: 1, clientId: 1, date: '2024-10-28', desc: 'Digital Marketing Agency Wire', amount: -12400, ref: 'EFT-9912', matched: true, matchRef: 'JE-1007' },
-  { id: 2, clientId: 1, date: '2024-10-25', desc: 'Equipment Depreciation Amortization', amount: -1200, ref: 'SYS-AUTO', matched: true, matchRef: 'JE-1006' },
-  { id: 3, clientId: 1, date: '2024-10-20', desc: 'Office Depot - Stationary Invoices', amount: -840, ref: 'EFT-9910', matched: true, matchRef: 'JE-1005' },
-  { id: 4, clientId: 1, date: '2024-10-15', desc: 'Premises Lease Rental - Suite 400', amount: -5500, ref: 'EFT-9909', matched: true, matchRef: 'JE-1004' },
-  { id: 5, clientId: 1, date: '2024-10-10', desc: 'Staff Payroll Disbursement - October', amount: -48000, ref: 'EFT-9908', matched: true, matchRef: 'JE-1003' },
-  { id: 6, clientId: 1, date: '2024-10-08', desc: 'Client Direct Settlement - Beta Ltd', amount: 8750, ref: 'DEP-2234', matched: false, matchRef: null },
-  { id: 7, clientId: 1, date: '2024-10-05', desc: 'Customer Invoice Receipt - Acme Corp', amount: 91000, ref: 'DEP-2233', matched: false, matchRef: null },
-  { id: 8, clientId: 1, date: '2024-10-02', desc: 'Commercial Banking Charges & Fees', amount: -125, ref: 'FEE-OCT', matched: false, matchRef: null },
-  { id: 9, clientId: 1, date: '2024-10-01', desc: 'Monthly Deposit Interest Accrued', amount: 340, ref: 'INT-OCT', matched: false, matchRef: null },
 ]
 
 export const useAccountingStore = create(
@@ -367,10 +341,44 @@ export const useAccountingStore = create(
       },
 
       // ── Client CRUD ──
-      addClient: (client) => {
+      addClient: (client, withStarterData = true) => {
         const newClient = { ...client, id: Date.now() }
-        set((s) => ({ clients: [newClient, ...s.clients] }))
+        let newAccounts = []
+        let newJournals = []
+        let newBankItems = []
+        let newPapers = []
+        let newDocs = []
+
+        if (withStarterData) {
+          const starter = buildStarterDataForClient(newClient.id, newClient.name, 1)
+          newAccounts = starter.accounts
+          newJournals = starter.journals
+          newBankItems = starter.bankItems
+          newPapers = starter.workingPapers
+          newDocs = starter.documents
+        }
+
+        set((s) => ({
+          clients: [newClient, ...s.clients],
+          accounts: [...s.accounts, ...newAccounts],
+          journals: [...s.journals, ...newJournals],
+          bankItems: [...s.bankItems, ...newBankItems],
+          workingPapers: [...s.workingPapers, ...newPapers],
+          documents: [...s.documents, ...newDocs],
+        }))
         return newClient
+      },
+
+      seedClientStarterData: (clientId, clientName, multiplier = 1) => {
+        const starter = buildStarterDataForClient(clientId, clientName, multiplier)
+        set((s) => ({
+          accounts: [...s.accounts.filter(a => a.clientId !== clientId), ...starter.accounts],
+          journals: [...s.journals.filter(j => j.clientId !== clientId), ...starter.journals],
+          bankItems: [...s.bankItems.filter(b => b.clientId !== clientId), ...starter.bankItems],
+          workingPapers: [...s.workingPapers.filter(w => w.clientId !== clientId), ...starter.workingPapers],
+          documents: [...s.documents.filter(d => d.clientId !== clientId), ...starter.documents],
+        }))
+        return starter
       },
 
       updateClient: (id, updatedFields) => set((s) => ({

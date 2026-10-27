@@ -5,7 +5,7 @@ import {
   LogOut, Building2, FolderOpen, Save, Scale, FileText, ClipboardList,
   FileCode, Key, Calculator, Clock, HelpCircle, Laptop, ShieldCheck, Printer,
   FileEdit, History, Download, Upload, RefreshCw, ZoomIn, ZoomOut, Maximize2,
-  ExternalLink, Code2, Globe, Shield
+  ExternalLink, Code2, Globe, Shield, Minus, Square, Copy, X, Sparkles, Wand2, Plus
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useAccountingStore } from '@/store/accountingStore'
@@ -20,11 +20,28 @@ export default function TitleBar({ onOpenAbout }) {
   const clients = useAccountingStore(s => s.clients)
   const activeClientId = useAccountingStore(s => s.activeClientId)
   const setActiveClientId = useAccountingStore(s => s.setActiveClientId)
+  const addClient = useAccountingStore(s => s.addClient)
   const recentEngagements = useAccountingStore(s => s.recentEngagements) || []
   const recentDocuments = useAccountingStore(s => s.recentDocuments) || []
   const exportEngagementBackup = useAccountingStore(s => s.exportEngagementBackup)
   const restoreEngagementBackup = useAccountingStore(s => s.restoreEngagementBackup)
   const rollForwardYear = useAccountingStore(s => s.rollForwardYear)
+
+  // Window maximized state
+  const [isMaximized, setIsMaximized] = useState(false)
+
+  // New Engagement File Modal state
+  const [isNewFileModalOpen, setIsNewFileModalOpen] = useState(false)
+  const [newFileAiPrompt, setNewFileAiPrompt] = useState('')
+  const [isAiDrafting, setIsAiDrafting] = useState(false)
+  const [newFileForm, setNewFileForm] = useState({
+    name: '',
+    contact: 'Finance Director',
+    type: 'Audit & Statutory AFS',
+    fyEnd: '28 Feb 2025',
+    location: 'Johannesburg, South Africa',
+    starterDataset: 'standard' // 'standard', 'blank', 'import'
+  })
 
   // Top Menu Bar state
   const [activeMenu, setActiveMenu] = useState(null) // 'file', 'edit', 'view', 'engagement', 'statutory', 'tools', 'help'
@@ -63,6 +80,102 @@ export default function TitleBar({ onOpenAbout }) {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Listen to window maximize events & Ctrl+N keyboard shortcut
+  useEffect(() => {
+    if (window.provident?.isMaximized) {
+      window.provident.isMaximized().then(setIsMaximized).catch(() => {})
+    }
+    let cleanupMax = null
+    if (window.provident?.onMaximizedChange) {
+      cleanupMax = window.provident.onMaximizedChange((max) => setIsMaximized(max))
+    }
+
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+        e.preventDefault()
+        setIsNewFileModalOpen(true)
+        setActiveMenu(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      if (typeof cleanupMax === 'function') cleanupMax()
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
+
+  const handleCreateNewFile = (e) => {
+    e.preventDefault()
+    if (!newFileForm.name.trim()) return
+
+    if (newFileForm.starterDataset === 'import') {
+      setIsNewFileModalOpen(false)
+      navigate('/migrate')
+      return
+    }
+
+    const created = addClient({
+      name: newFileForm.name.trim(),
+      contact: newFileForm.contact || 'Financial Director',
+      email: `finance@${newFileForm.name.toLowerCase().replace(/[^a-z0-9]/g, '')}.co.za`,
+      phone: '+27 11 555 0199',
+      location: newFileForm.location || 'Johannesburg, South Africa',
+      type: newFileForm.type,
+      fyEnd: newFileForm.fyEnd,
+      status: 'Active',
+      accountsCount: 21,
+      logo: null
+    }, newFileForm.starterDataset === 'standard')
+
+    setActiveClientId(created.id)
+    showBanner(`✓ Created & Opened: "${created.name}"`)
+    setIsNewFileModalOpen(false)
+    setNewFileForm({
+      name: '',
+      contact: 'Finance Director',
+      type: 'Audit & Statutory AFS',
+      fyEnd: '28 Feb 2025',
+      location: 'Johannesburg, South Africa',
+      starterDataset: 'standard'
+    })
+    navigate('/working-papers')
+  }
+
+  const handleAiAutoFillNewFile = () => {
+    if (!newFileAiPrompt.trim()) return
+    setIsAiDrafting(true)
+    setTimeout(() => {
+      const p = newFileAiPrompt.toLowerCase()
+      let industryName = newFileAiPrompt.trim()
+      let loc = 'Johannesburg, South Africa'
+      let type = 'Audit & Statutory AFS'
+      let fy = '28 Feb 2025'
+
+      if (p.includes('durban') || p.includes('kzn')) loc = 'Durban, KwaZulu-Natal'
+      else if (p.includes('cape town') || p.includes('western cape')) loc = 'Cape Town, Western Cape'
+      else if (p.includes('pretoria')) loc = 'Pretoria, Gauteng'
+
+      if (p.includes('non-profit') || p.includes('npo')) {
+        industryName = `${newFileAiPrompt.trim()} NPC`
+        type = 'NPO & Statutory Review'
+      } else if (!p.includes('ltd') && !p.includes('cc') && !p.includes('inc')) {
+        industryName = `${newFileAiPrompt.trim()} (Pty) Ltd`
+      }
+
+      setNewFileForm(prev => ({
+        ...prev,
+        name: industryName,
+        location: loc,
+        type: type,
+        fyEnd: fy,
+        contact: 'Managing Director'
+      }))
+      setIsAiDrafting(false)
+      setNewFileAiPrompt('')
+    }, 600)
+  }
 
   const handleSearchChange = (e) => {
     const q = e.target.value
@@ -133,6 +246,7 @@ export default function TitleBar({ onOpenAbout }) {
   }
 
   return (
+    <>
     <div ref={headerRef} className="shrink-0 flex flex-col select-none text-slate-800 bg-white border-b border-slate-200 z-40 relative">
       <input
         type="file"
@@ -143,9 +257,9 @@ export default function TitleBar({ onOpenAbout }) {
       />
 
       {/* ── UNIFIED COMMAND BAR: Clean Logo, Entity Selector, Quick Actions, Search & Profile ── */}
-      <div className="h-10 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-3 text-slate-300 gap-3">
+      <div className="h-10 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-3 text-slate-300 gap-3 drag-region">
         {/* Left: Official Provident Logo & Client Entity Selector */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0 no-drag">
           <div
             className="flex items-center gap-2 cursor-pointer py-1 px-1 rounded hover:bg-slate-800/80 transition-colors"
             onClick={() => navigate('/dashboard')}
@@ -267,8 +381,8 @@ export default function TitleBar({ onOpenAbout }) {
           )}
         </div>
 
-        {/* Right: Notifications, Save Indicator & User Profile */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right: Notifications, Save Indicator & User Profile & Window Controls */}
+        <div className="flex items-center gap-2 shrink-0 no-drag">
           {bannerAlert && (
             <span className="text-[10px] font-semibold text-emerald-300 bg-emerald-950/70 border border-emerald-700/60 px-2 py-0.5 rounded animate-in fade-in">
               {bannerAlert}
@@ -338,6 +452,33 @@ export default function TitleBar({ onOpenAbout }) {
               </div>
             )}
           </div>
+
+          {/* ── Native Window Controls (Minimize / Maximize / Close) ── */}
+          {window.provident && (
+            <div className="flex items-center gap-0 ml-2 shrink-0">
+              <button
+                onClick={() => window.provident.minimize()}
+                className="w-9 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
+                title="Minimize"
+              >
+                <Minus size={12} />
+              </button>
+              <button
+                onClick={() => window.provident.maximize()}
+                className="w-9 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
+                title={isMaximized ? 'Restore Down' : 'Maximize'}
+              >
+                {isMaximized ? <Copy size={11} /> : <Square size={11} />}
+              </button>
+              <button
+                onClick={() => window.provident.close()}
+                className="w-9 h-10 flex items-center justify-center text-slate-400 hover:bg-red-600 hover:text-white transition-colors"
+                title="Close Application"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -359,10 +500,10 @@ export default function TitleBar({ onOpenAbout }) {
           {activeMenu === 'file' && (
             <div className="absolute left-0 mt-0.5 w-64 bg-white rounded-md shadow-2xl border border-slate-200 py-1 text-slate-800 z-50 text-xs">
               <button
-                onClick={() => { navigate('/clients'); setActiveMenu(null) }}
-                className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between"
+                onClick={() => { setIsNewFileModalOpen(true); setActiveMenu(null) }}
+                className="w-full text-left px-3 py-1.5 hover:bg-indigo-50 flex items-center justify-between"
               >
-                <span>New Engagement File...</span>
+                <span className="flex items-center gap-1.5"><Plus size={12} className="text-indigo-600" />New Engagement File...</span>
                 <span className="text-[10px] text-slate-400 font-mono">Ctrl+N</span>
               </button>
               <button
@@ -898,5 +1039,154 @@ export default function TitleBar({ onOpenAbout }) {
         </button>
       </div>
     </div>
+
+    {/* ── NEW ENGAGEMENT FILE MODAL ── */}
+    {isNewFileModalOpen && (
+      <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl border border-slate-200 max-w-lg w-full">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
+                <Plus size={16} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">New Engagement File</h2>
+                <p className="text-[10px] text-slate-500 mt-0.5">Create a new client engagement workspace</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsNewFileModalOpen(false)}
+              className="text-slate-400 hover:text-slate-700 p-1 rounded"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="px-6 py-4 space-y-4">
+            {/* AI Quick-Fill Banner */}
+            <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100 space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-700">
+                <Sparkles size={13} className="text-indigo-600" />
+                <span>AI Smart Setup — Describe the company</span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newFileAiPrompt}
+                  onChange={e => setNewFileAiPrompt(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAiAutoFillNewFile()}
+                  placeholder='e.g. "Mining logistics Rustenburg" or "Cape Town fintech startup"'
+                  className="flex-1 bg-white border border-indigo-200 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-indigo-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleAiAutoFillNewFile}
+                  disabled={isAiDrafting || !newFileAiPrompt.trim()}
+                  className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-semibold cursor-pointer shrink-0"
+                >
+                  {isAiDrafting ? <RefreshCw size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                  {isAiDrafting ? 'Drafting...' : 'Auto-Fill'}
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateNewFile} className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Entity / Company Name <span className="text-rose-500">*</span></label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={newFileForm.name}
+                  onChange={e => setNewFileForm(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g. Acme Holdings (Pty) Ltd"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-400"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Engagement Type</label>
+                  <select
+                    value={newFileForm.type}
+                    onChange={e => setNewFileForm(prev => ({ ...prev, type: e.target.value }))}
+                    className="w-full border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 bg-white"
+                  >
+                    <option>Audit &amp; Statutory AFS</option>
+                    <option>Bookkeeping &amp; Accounting</option>
+                    <option>Tax Only</option>
+                    <option>Independent Review</option>
+                    <option>NPO &amp; Statutory Review</option>
+                    <option>Full Practice Service</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-semibold text-slate-700 block mb-1">Financial Year End</label>
+                  <input
+                    type="text"
+                    value={newFileForm.fyEnd}
+                    onChange={e => setNewFileForm(prev => ({ ...prev, fyEnd: e.target.value }))}
+                    placeholder="e.g. 28 Feb 2025"
+                    className="w-full border border-slate-300 rounded px-3 py-1.5 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Location / Office</label>
+                <input
+                  type="text"
+                  value={newFileForm.location}
+                  onChange={e => setNewFileForm(prev => ({ ...prev, location: e.target.value }))}
+                  placeholder="e.g. Johannesburg, South Africa"
+                  className="w-full border border-slate-300 rounded px-3 py-1.5 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Starter Dataset Choice */}
+              <div>
+                <label className="font-semibold text-slate-700 block mb-2">Opening Data Setup</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'standard', label: 'SA Standard Starter', desc: '21 accounts, 6 lead schedules, bank items & journals pre-loaded', color: 'border-indigo-400 bg-indigo-50 text-indigo-800' },
+                    { id: 'blank', label: 'Blank File', desc: 'Empty engagement — enter all data manually from scratch', color: 'border-slate-300 text-slate-700' },
+                    { id: 'import', label: 'Import File', desc: 'Opens the CaseWare / Draftworx import hub to load your data', color: 'border-emerald-400 bg-emerald-50 text-emerald-800' },
+                  ].map(opt => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setNewFileForm(prev => ({ ...prev, starterDataset: opt.id }))}
+                      className={`p-2.5 border-2 rounded-lg text-left transition-all cursor-pointer ${newFileForm.starterDataset === opt.id ? opt.color + ' border-opacity-100 shadow-sm' : 'border-slate-200 hover:border-slate-300 text-slate-600'}`}
+                    >
+                      <div className="font-bold text-[11px] mb-0.5">{opt.label}</div>
+                      <div className="text-[9px] leading-tight opacity-80">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsNewFileModalOpen(false)}
+                  className="px-4 py-1.5 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex items-center gap-1.5 px-5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-semibold shadow-sm cursor-pointer"
+                >
+                  <Plus size={13} />
+                  Create Engagement File
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

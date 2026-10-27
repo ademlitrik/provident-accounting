@@ -165,36 +165,8 @@ Output strictly raw JSON without markdown or code fences.`
     if (editingClient) {
       updateClient(editingClient.id, formData)
     } else {
-      const created = addClient(formData)
+      const created = addClient(formData, initTemplate)
       setActiveClientId(created.id)
-
-      // Initialize default South African CaseWare / Probe MMX starter structure
-      if (initTemplate) {
-        const defaultChart = [
-          { code: '1000', name: 'Cash and Cash Equivalents', type: 'Asset', sub: 'Current Assets', balance: 0, clientId: created.id },
-          { code: '1100', name: 'Trade and Other Receivables', type: 'Asset', sub: 'Current Assets', balance: 0, clientId: created.id },
-          { code: '1200', name: 'Merchandise Inventories at Cost', type: 'Asset', sub: 'Current Assets', balance: 0, clientId: created.id },
-          { code: '1500', name: 'Property, Plant & Equipment', type: 'Asset', sub: 'Non-Current Assets', balance: 0, clientId: created.id },
-          { code: '2000', name: 'Trade and Other Payables', type: 'Liability', sub: 'Current Liabilities', balance: 0, clientId: created.id },
-          { code: '2500', name: 'Long-term Bank Facilities', type: 'Liability', sub: 'Non-Current Liabilities', balance: 0, clientId: created.id },
-          { code: '3000', name: 'Ordinary Share Capital', type: 'Equity', sub: 'Shareholder Capital', balance: 0, clientId: created.id },
-          { code: '3100', name: 'Retained Earnings', type: 'Equity', sub: 'Retained Reserves', balance: 0, clientId: created.id },
-          { code: '4000', name: 'Operating Sales Revenue', type: 'Income', sub: 'Operating Revenue', balance: 0, clientId: created.id },
-          { code: '5000', name: 'Direct Cost of Merchandise Sold', type: 'Expense', sub: 'Direct Costs', balance: 0, clientId: created.id },
-          { code: '5100', name: 'Salaries, Wages & Employee Benefits', type: 'Expense', sub: 'Operating Expenses', balance: 0, clientId: created.id },
-          { code: '5200', name: 'Premises Lease Rentals', type: 'Expense', sub: 'Operating Expenses', balance: 0, clientId: created.id },
-        ]
-        defaultChart.forEach(acc => addAccount(acc))
-
-        const defaultPapers = [
-          { section: 'Cash & Bank', title: 'Lead Schedule — Bank Reconciliation & Certificates', assignee: formData.contact || 'Auditor', status: 'In Progress', risk: 'Low', balance: 'R 0', clientId: created.id },
-          { section: 'Receivables', title: 'Lead Schedule — Debtors Ageing & Bad Debt Evaluation', assignee: formData.contact || 'Auditor', status: 'Not Started', risk: 'Medium', balance: 'R 0', clientId: created.id },
-          { section: 'Fixed Assets', title: 'Lead Schedule — Plant, Equipment & Depreciation Register', assignee: formData.contact || 'Auditor', status: 'Not Started', risk: 'Low', balance: 'R 0', clientId: created.id },
-          { section: 'Revenue', title: 'Lead Schedule — Operating Sales & Analytical Review', assignee: formData.contact || 'Auditor', status: 'In Progress', risk: 'High', balance: 'R 0', clientId: created.id },
-          { section: 'Liabilities', title: 'Lead Schedule — Trade Payables & Accrual Cut-off', assignee: formData.contact || 'Auditor', status: 'Not Started', risk: 'Low', balance: 'R 0', clientId: created.id },
-        ]
-        defaultPapers.forEach(p => addWorkingPaper(p))
-      }
     }
     setIsModalOpen(false)
     setEditingClient(null)
