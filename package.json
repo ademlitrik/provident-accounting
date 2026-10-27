@@ -1,6 +1,6 @@
 {
   "name": "provident",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Provident Accounting Software — Modern AI-Powered Accounting",
   "author": "Afro Vision Media",
   "main": "electron/main.cjs",
