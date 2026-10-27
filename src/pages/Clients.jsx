@@ -2,9 +2,11 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Plus, Search, Building2, Mail, Phone, MapPin, X, Check,
-  Edit2, Trash2, AlertTriangle, Image as ImageIcon, Upload, FileCheck
+  Edit2, Trash2, AlertTriangle, Image as ImageIcon, Upload, FileCheck,
+  Sparkles, Wand2, RefreshCw, Bot
 } from 'lucide-react'
 import { useAccountingStore } from '@/store/accountingStore'
+import { askGemini, getGeminiKey } from '@/ai/gemini'
 
 export default function Clients() {
   const navigate = useNavigate()
@@ -13,12 +15,81 @@ export default function Clients() {
   const setActiveClientId = useAccountingStore(s => s.setActiveClientId)
   const addClient = useAccountingStore(s => s.addClient)
   const updateClient = useAccountingStore(s => s.updateClient)
-  const deleteClient = useAccountingStore(s => s.deleteClient)
+  const addAccount = useAccountingStore(s => s.addAccount)
+  const addWorkingPaper = useAccountingStore(s => s.addWorkingPaper)
+  const [initTemplate, setInitTemplate] = useState(true)
 
-  const [search, setSearch] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingClient, setEditingClient] = useState(null)
-  const [deletingClient, setDeletingClient] = useState(null)
+  const [isAiGenerating, setIsAiGenerating] = useState(false)
+  const [aiIndustryPrompt, setAiIndustryPrompt] = useState('')
+  const [aiError, setAiError] = useState('')
+
+  const handleAiAutoFill = async () => {
+    if (!aiIndustryPrompt.trim() && !formData.name.trim()) {
+      setAiError('Please enter a company name or description first.')
+      return
+    }
+    setAiError('')
+    setIsAiGenerating(true)
+
+    const query = `You are a South African corporate secretarial & accounting expert setup assistant.
+Based on this business: "${aiIndustryPrompt.trim() || formData.name.trim()}", produce a JSON object with:
+- name: professional company name ending in (Pty) Ltd or CC
+- contact: realistic full name of financial director or managing director
+- email: valid business email matching company name
+- phone: realistic South African landline (e.g. +27 11, +27 21, or +27 31)
+- location: realistic city and province (e.g. Sandton, Johannesburg, South Africa)
+- type: one of "IFRS for SMEs - Company (Pty) Ltd", "IFRS for SMEs - Close Corporation (CC)", "Full IFRS - Listed / Large Enterprise", "SAIPA - Compilation & Accounting Officer", or "Probe MMX - Statutory Audit (ISA 315/320)"
+- fyEnd: typical fiscal year end like "28 Feb 2025" or "31 Dec 2024"
+
+Output strictly raw JSON without markdown or code fences.`
+
+    try {
+      const apiKey = getGeminiKey()
+      let resText = ''
+      if (apiKey) {
+        resText = await askGemini(query)
+      }
+
+      // Try parsing response, otherwise provide intelligent fallback
+      let parsed = null
+      if (resText) {
+        try {
+          const cleaned = resText.replace(/```json/g, '').replace(/```/g, '').trim()
+          parsed = JSON.parse(cleaned)
+        } catch (_) {}
+      }
+
+      if (!parsed) {
+        // Fallback intelligent generator
+        const baseName = formData.name.trim() || aiIndustryPrompt.trim() || 'Zenith Apex Enterprises'
+        const cleanSlug = baseName.toLowerCase().replace(/[^a-z0-9]/g, '')
+        parsed = {
+          name: baseName.includes('(Pty)') ? baseName : `${baseName} (Pty) Ltd`,
+          contact: 'David M. Khumalo (Financial Director)',
+          email: `finance@${cleanSlug}.co.za`,
+          phone: '+27 11 555 ' + Math.floor(1000 + Math.random() * 9000),
+          location: 'Rosebank, Johannesburg, South Africa',
+          type: 'IFRS for SMEs - Company (Pty) Ltd',
+          fyEnd: '28 Feb 2025'
+        }
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        name: parsed.name || prev.name,
+        contact: parsed.contact || prev.contact,
+        email: parsed.email || prev.email,
+        phone: parsed.phone || prev.phone,
+        location: parsed.location || prev.location,
+        type: parsed.type || prev.type,
+        fyEnd: parsed.fyEnd || prev.fyEnd
+      }))
+    } catch (err) {
+      setAiError(err.message || 'AI Auto-setup failed.')
+    } finally {
+      setIsAiGenerating(false)
+    }
+  }
 
   const [formData, setFormData] = useState({
     name: '',
@@ -94,7 +165,36 @@ export default function Clients() {
     if (editingClient) {
       updateClient(editingClient.id, formData)
     } else {
-      addClient(formData)
+      const created = addClient(formData)
+      setActiveClientId(created.id)
+
+      // Initialize default South African CaseWare / Probe MMX starter structure
+      if (initTemplate) {
+        const defaultChart = [
+          { code: '1000', name: 'Cash and Cash Equivalents', type: 'Asset', sub: 'Current Assets', balance: 0, clientId: created.id },
+          { code: '1100', name: 'Trade and Other Receivables', type: 'Asset', sub: 'Current Assets', balance: 0, clientId: created.id },
+          { code: '1200', name: 'Merchandise Inventories at Cost', type: 'Asset', sub: 'Current Assets', balance: 0, clientId: created.id },
+          { code: '1500', name: 'Property, Plant & Equipment', type: 'Asset', sub: 'Non-Current Assets', balance: 0, clientId: created.id },
+          { code: '2000', name: 'Trade and Other Payables', type: 'Liability', sub: 'Current Liabilities', balance: 0, clientId: created.id },
+          { code: '2500', name: 'Long-term Bank Facilities', type: 'Liability', sub: 'Non-Current Liabilities', balance: 0, clientId: created.id },
+          { code: '3000', name: 'Ordinary Share Capital', type: 'Equity', sub: 'Shareholder Capital', balance: 0, clientId: created.id },
+          { code: '3100', name: 'Retained Earnings', type: 'Equity', sub: 'Retained Reserves', balance: 0, clientId: created.id },
+          { code: '4000', name: 'Operating Sales Revenue', type: 'Income', sub: 'Operating Revenue', balance: 0, clientId: created.id },
+          { code: '5000', name: 'Direct Cost of Merchandise Sold', type: 'Expense', sub: 'Direct Costs', balance: 0, clientId: created.id },
+          { code: '5100', name: 'Salaries, Wages & Employee Benefits', type: 'Expense', sub: 'Operating Expenses', balance: 0, clientId: created.id },
+          { code: '5200', name: 'Premises Lease Rentals', type: 'Expense', sub: 'Operating Expenses', balance: 0, clientId: created.id },
+        ]
+        defaultChart.forEach(acc => addAccount(acc))
+
+        const defaultPapers = [
+          { section: 'Cash & Bank', title: 'Lead Schedule — Bank Reconciliation & Certificates', assignee: formData.contact || 'Auditor', status: 'In Progress', risk: 'Low', balance: 'R 0', clientId: created.id },
+          { section: 'Receivables', title: 'Lead Schedule — Debtors Ageing & Bad Debt Evaluation', assignee: formData.contact || 'Auditor', status: 'Not Started', risk: 'Medium', balance: 'R 0', clientId: created.id },
+          { section: 'Fixed Assets', title: 'Lead Schedule — Plant, Equipment & Depreciation Register', assignee: formData.contact || 'Auditor', status: 'Not Started', risk: 'Low', balance: 'R 0', clientId: created.id },
+          { section: 'Revenue', title: 'Lead Schedule — Operating Sales & Analytical Review', assignee: formData.contact || 'Auditor', status: 'In Progress', risk: 'High', balance: 'R 0', clientId: created.id },
+          { section: 'Liabilities', title: 'Lead Schedule — Trade Payables & Accrual Cut-off', assignee: formData.contact || 'Auditor', status: 'Not Started', risk: 'Low', balance: 'R 0', clientId: created.id },
+        ]
+        defaultPapers.forEach(p => addWorkingPaper(p))
+      }
     }
     setIsModalOpen(false)
     setEditingClient(null)
@@ -228,6 +328,12 @@ export default function Clients() {
                     <MapPin size={12} className="text-slate-400 shrink-0" />
                     <span>{client.location}</span>
                   </div>
+                  {client.lastOpened && (
+                    <div className="flex items-center gap-2 text-[10px] text-indigo-600 font-medium pt-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse shrink-0" />
+                      <span>Last worked on: <strong>{client.lastOpened}</strong></span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -258,6 +364,43 @@ export default function Clients() {
                 <X size={16} />
               </button>
             </div>
+
+            {/* AI Assistant Quick Auto-Fill Strip */}
+            {!editingClient && (
+              <div className="p-3 bg-gradient-to-r from-indigo-50/80 to-purple-50/80 border border-indigo-100 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-indigo-700 font-bold text-xs">
+                    <Sparkles size={14} className="text-indigo-600 animate-spin-slow" />
+                    <span>Provident AI Company Setup Assistant</span>
+                  </div>
+                  <span className="text-[9px] bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.2 rounded uppercase">
+                    SMART SETUP
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-tight">
+                  Enter an industry, company name, or activity (e.g. <em>"Mining Logistics in Rustenburg"</em> or <em>"Fintech in Sandton"</em>). AI will automatically structure corporate details, directors, and statutory framework.
+                </p>
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={aiIndustryPrompt}
+                    onChange={(e) => setAiIndustryPrompt(e.target.value)}
+                    placeholder="e.g. Cape Town Renewable Solar Energy..."
+                    className="flex-1 bg-white border border-indigo-200 rounded px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-indigo-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAiAutoFill}
+                    disabled={isAiGenerating}
+                    className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-2.5 py-1 rounded text-xs font-semibold shadow-xs cursor-pointer shrink-0"
+                  >
+                    {isAiGenerating ? <RefreshCw size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                    <span>{isAiGenerating ? 'Drafting...' : 'Auto-Fill'}</span>
+                  </button>
+                </div>
+                {aiError && <p className="text-[10px] text-rose-600 font-medium">{aiError}</p>}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
@@ -389,6 +532,22 @@ export default function Clients() {
                   />
                 </div>
               </div>
+
+              {!editingClient && (
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={initTemplate}
+                      onChange={(e) => setInitTemplate(e.target.checked)}
+                      className="rounded text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-[11px] font-medium text-slate-700">
+                      Auto-generate initial SA standard Chart of Accounts & Lead Schedules
+                    </span>
+                  </label>
+                </div>
+              )}
 
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button

@@ -75,34 +75,34 @@ const INITIAL_CLIENTS = [
 ]
 
 const INITIAL_ACCOUNTS = [
-  { code: '1000', name: 'Cash and Cash Equivalents', type: 'Asset', sub: 'Current Assets', balance: 284500 },
-  { code: '1100', name: 'Trade and Other Receivables', type: 'Asset', sub: 'Current Assets', balance: 156300 },
-  { code: '1200', name: 'Merchandise Inventory at Cost', type: 'Asset', sub: 'Current Assets', balance: 93400 },
-  { code: '1500', name: 'Property, Plant & Equipment (Gross)', type: 'Asset', sub: 'Non-Current Assets', balance: 620000 },
-  { code: '1510', name: 'Accumulated Depreciation - Plant', type: 'Asset', sub: 'Non-Current Assets', balance: -184000 },
-  { code: '2000', name: 'Trade and Other Payables', type: 'Liability', sub: 'Current Liabilities', balance: -89700 },
-  { code: '2100', name: 'Short-term Borrowings (Working Capital)', type: 'Liability', sub: 'Current Liabilities', balance: -50000 },
-  { code: '2500', name: 'Long-term Bank Facilities', type: 'Liability', sub: 'Non-Current Liabilities', balance: -230000 },
-  { code: '3000', name: 'Ordinary Share Capital', type: 'Equity', sub: 'Shareholder Capital', balance: -300000 },
-  { code: '3100', name: 'Retained Earnings (Accumulated Reserves)', type: 'Equity', sub: 'Retained Reserves', balance: -62500 },
-  { code: '4000', name: 'Operating Sales Revenue', type: 'Income', sub: 'Operating Revenue', balance: -654000 },
-  { code: '4100', name: 'Professional Advisory Fee Income', type: 'Income', sub: 'Operating Revenue', balance: -87500 },
-  { code: '5000', name: 'Direct Cost of Merchandise Sold', type: 'Expense', sub: 'Direct Costs', balance: 312000 },
-  { code: '5100', name: 'Salaries, Wages & Employee Benefits', type: 'Expense', sub: 'Operating Expenses', balance: 144000 },
-  { code: '5200', name: 'Premises Lease Rentals', type: 'Expense', sub: 'Operating Expenses', balance: 33000 },
-  { code: '5300', name: 'Administrative & Office Operating Expenses', type: 'Expense', sub: 'Operating Expenses', balance: 8500 },
-  { code: '5400', name: 'Depreciation & Amortization Expense', type: 'Expense', sub: 'Operating Expenses', balance: 14400 },
-  { code: '5500', name: 'Digital Advertising & Marketing Expenses', type: 'Expense', sub: 'Operating Expenses', balance: 12400 },
-  { code: '5600', name: 'Municipal Utilities, Power & Telecoms', type: 'Expense', sub: 'Operating Expenses', balance: 4200 },
+  { code: '1000', name: 'Cash and Cash Equivalents', type: 'Asset', sub: 'Current Assets', balance: 284500, clientId: 1 },
+  { code: '1100', name: 'Trade and Other Receivables', type: 'Asset', sub: 'Current Assets', balance: 156300, clientId: 1 },
+  { code: '1200', name: 'Merchandise Inventory at Cost', type: 'Asset', sub: 'Current Assets', balance: 93400, clientId: 1 },
+  { code: '1500', name: 'Property, Plant & Equipment (Gross)', type: 'Asset', sub: 'Non-Current Assets', balance: 620000, clientId: 1 },
+  { code: '1510', name: 'Accumulated Depreciation - Plant', type: 'Asset', sub: 'Non-Current Assets', balance: -184000, clientId: 1 },
+  { code: '2000', name: 'Trade and Other Payables', type: 'Liability', sub: 'Current Liabilities', balance: -89700, clientId: 1 },
+  { code: '2100', name: 'Short-term Borrowings (Working Capital)', type: 'Liability', sub: 'Current Liabilities', balance: -50000, clientId: 1 },
+  { code: '2500', name: 'Long-term Bank Facilities', type: 'Liability', sub: 'Non-Current Liabilities', balance: -230000, clientId: 1 },
+  { code: '3000', name: 'Ordinary Share Capital', type: 'Equity', sub: 'Shareholder Capital', balance: -300000, clientId: 1 },
+  { code: '3100', name: 'Retained Earnings (Accumulated Reserves)', type: 'Equity', sub: 'Retained Reserves', balance: -62500, clientId: 1 },
+  { code: '4000', name: 'Operating Sales Revenue', type: 'Income', sub: 'Operating Revenue', balance: -654000, clientId: 1 },
+  { code: '4100', name: 'Professional Advisory Fee Income', type: 'Income', sub: 'Operating Revenue', balance: -87500, clientId: 1 },
+  { code: '5000', name: 'Direct Cost of Merchandise Sold', type: 'Expense', sub: 'Direct Costs', balance: 312000, clientId: 1 },
+  { code: '5100', name: 'Salaries, Wages & Employee Benefits', type: 'Expense', sub: 'Operating Expenses', balance: 144000, clientId: 1 },
+  { code: '5200', name: 'Premises Lease Rentals', type: 'Expense', sub: 'Operating Expenses', balance: 33000, clientId: 1 },
+  { code: '5300', name: 'Administrative & Office Operating Expenses', type: 'Expense', sub: 'Operating Expenses', balance: 8500, clientId: 1 },
+  { code: '5400', name: 'Depreciation & Amortization Expense', type: 'Expense', sub: 'Operating Expenses', balance: 14400, clientId: 1 },
+  { code: '5500', name: 'Digital Advertising & Marketing Expenses', type: 'Expense', sub: 'Operating Expenses', balance: 12400, clientId: 1 },
+  { code: '5600', name: 'Municipal Utilities, Power & Telecoms', type: 'Expense', sub: 'Operating Expenses', balance: 4200, clientId: 1 },
 ]
 
 const INITIAL_JOURNALS = [
-  { id: 'JE-1041', date: '2024-10-25', description: 'Monthly Sales Revenue Recognized - Acme Corp', debit: '1100 Trade Receivables', credit: '4000 Sales Revenue', amount: 12400, status: 'Posted', author: 'Jane Doe' },
-  { id: 'JE-1040', date: '2024-10-24', description: 'Office Consumables & Stationary Supplies', debit: '5300 Office Expenses', credit: '1000 Cash Equivalents', amount: 840, status: 'Posted', author: 'System' },
-  { id: 'JE-1039', date: '2024-10-23', description: 'Staff Payroll Disbursement - October 2024', debit: '5100 Salaries Expense', credit: '1000 Cash Equivalents', amount: 48000, status: 'Posted', author: 'Admin User' },
-  { id: 'JE-1038', date: '2024-10-22', description: 'Consulting Advisory Retainer - Beta Technologies', debit: '1100 Trade Receivables', credit: '4100 Consulting Revenue', amount: 8750, status: 'Posted', author: 'Jane Doe' },
-  { id: 'JE-1037', date: '2024-10-21', description: 'Premises Lease Rental Oct - Suite 400', debit: '5200 Rent Expense', credit: '1000 Cash Equivalents', amount: 5500, status: 'Posted', author: 'Jane Doe' },
-  { id: 'JE-1036', date: '2024-10-20', description: 'Depreciation Provision - Office Machinery', debit: '5400 Depreciation Expense', credit: '1510 Acc. Depreciation', amount: 1200, status: 'Posted', author: 'System' },
+  { id: 'JE-1041', date: '2024-10-25', description: 'Monthly Sales Revenue Recognized - Acme Corp', debit: '1100 Trade Receivables', credit: '4000 Sales Revenue', amount: 12400, status: 'Posted', author: '', clientId: 1 },
+  { id: 'JE-1040', date: '2024-10-24', description: 'Office Consumables & Stationary Supplies', debit: '5300 Office Expenses', credit: '1000 Cash Equivalents', amount: 840, status: 'Posted', author: '', clientId: 1 },
+  { id: 'JE-1039', date: '2024-10-23', description: 'Staff Payroll Disbursement - October 2024', debit: '5100 Salaries Expense', credit: '1000 Cash Equivalents', amount: 48000, status: 'Posted', author: '', clientId: 1 },
+  { id: 'JE-1038', date: '2024-10-22', description: 'Consulting Advisory Retainer - Beta Technologies', debit: '1100 Trade Receivables', credit: '4100 Consulting Revenue', amount: 8750, status: 'Posted', author: '', clientId: 1 },
+  { id: 'JE-1037', date: '2024-10-21', description: 'Premises Lease Rental Oct - Suite 400', debit: '5200 Rent Expense', credit: '1000 Cash Equivalents', amount: 5500, status: 'Posted', author: '', clientId: 1 },
+  { id: 'JE-1036', date: '2024-10-20', description: 'Depreciation Provision - Office Machinery', debit: '5400 Depreciation Expense', credit: '1510 Acc. Depreciation', amount: 1200, status: 'Posted', author: '', clientId: 1 },
 ]
 
 const INITIAL_PAPERS = [
@@ -179,6 +179,18 @@ const INITIAL_RECENT_DOCUMENTS = [
   { id: 'DOC-004', name: 'Oct_Digital_Marketing_Invoice_INV-8812.png', type: 'Audit Voucher', wpRef: 'WP-001', date: '2024-10-28', size: '890 KB' },
 ]
 
+const INITIAL_BANK_ITEMS = [
+  { id: 1, clientId: 1, date: '2024-10-28', desc: 'Digital Marketing Agency Wire', amount: -12400, ref: 'EFT-9912', matched: true, matchRef: 'JE-1007' },
+  { id: 2, clientId: 1, date: '2024-10-25', desc: 'Equipment Depreciation Amortization', amount: -1200, ref: 'SYS-AUTO', matched: true, matchRef: 'JE-1006' },
+  { id: 3, clientId: 1, date: '2024-10-20', desc: 'Office Depot - Stationary Invoices', amount: -840, ref: 'EFT-9910', matched: true, matchRef: 'JE-1005' },
+  { id: 4, clientId: 1, date: '2024-10-15', desc: 'Premises Lease Rental - Suite 400', amount: -5500, ref: 'EFT-9909', matched: true, matchRef: 'JE-1004' },
+  { id: 5, clientId: 1, date: '2024-10-10', desc: 'Staff Payroll Disbursement - October', amount: -48000, ref: 'EFT-9908', matched: true, matchRef: 'JE-1003' },
+  { id: 6, clientId: 1, date: '2024-10-08', desc: 'Client Direct Settlement - Beta Ltd', amount: 8750, ref: 'DEP-2234', matched: false, matchRef: null },
+  { id: 7, clientId: 1, date: '2024-10-05', desc: 'Customer Invoice Receipt - Acme Corp', amount: 91000, ref: 'DEP-2233', matched: false, matchRef: null },
+  { id: 8, clientId: 1, date: '2024-10-02', desc: 'Commercial Banking Charges & Fees', amount: -125, ref: 'FEE-OCT', matched: false, matchRef: null },
+  { id: 9, clientId: 1, date: '2024-10-01', desc: 'Monthly Deposit Interest Accrued', amount: 340, ref: 'INT-OCT', matched: false, matchRef: null },
+]
+
 export const useAccountingStore = create(
   persist(
     (set, get) => ({
@@ -186,14 +198,32 @@ export const useAccountingStore = create(
       activeClientId: 1,
       setActiveClientId: (id) => {
         const client = get().clients.find(c => c.id === id)
+        const nowStr = new Date().toLocaleDateString('en-ZA', { 
+          day: 'numeric', 
+          month: 'short', 
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
         if (client) {
           const recents = get().recentEngagements || []
           const filtered = recents.filter(r => r.id !== id)
           const updated = [
-            { id: client.id, name: client.name, location: client.location, fyEnd: client.fyEnd, lastOpened: 'Just now' },
+            { 
+              id: client.id, 
+              name: client.name, 
+              location: client.location, 
+              fyEnd: client.fyEnd, 
+              lastOpened: nowStr,
+              lastOpenedTimestamp: Date.now()
+            },
             ...filtered
           ].slice(0, 8)
-          set({ activeClientId: id, recentEngagements: updated })
+          // Also update client object directly with last worked date/time
+          const updatedClients = get().clients.map(c => 
+            c.id === id ? { ...c, lastOpened: nowStr, lastOpenedTimestamp: Date.now() } : c
+          )
+          set({ activeClientId: id, recentEngagements: updated, clients: updatedClients })
         } else {
           set({ activeClientId: id })
         }
@@ -214,6 +244,36 @@ export const useAccountingStore = create(
       journals: INITIAL_JOURNALS,
       workingPapers: INITIAL_PAPERS,
       documents: INITIAL_DOCUMENTS,
+      bankItems: INITIAL_BANK_ITEMS,
+      auditTrail: [],
+
+      // ── Audit trail actions ──
+      addAuditEntry: (entry) => {
+        const state = get()
+        const newEntry = {
+          id: `AUD-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          clientId: entry.clientId || state.activeClientId,
+          user: entry.user || 'System',
+          action: entry.action || 'Unknown',
+          detail: entry.detail || '',
+          module: entry.module || 'General',
+          ...entry
+        }
+        set((s) => ({ auditTrail: [newEntry, ...s.auditTrail] }))
+      },
+
+      // ── Bank reconciliation actions ──
+      setBankItems: (items) => set({ bankItems: items }),
+      addBankItem: (item) => {
+        const activeId = get().activeClientId || 1
+        set((s) => ({
+          bankItems: [{ ...item, id: Date.now(), clientId: activeId }, ...s.bankItems]
+        }))
+      },
+      matchBankItem: (itemId, matchRef) => set((s) => ({
+        bankItems: s.bankItems.map(i => i.id === itemId ? { ...i, matched: true, matchRef } : i)
+      })),
 
       // ── Backup & Restore Engagement ──
       exportEngagementBackup: (clientId) => {
@@ -331,14 +391,39 @@ export const useAccountingStore = create(
 
       // ── Accounts actions ──
       addAccount: (account) => set((s) => ({
-        accounts: [...s.accounts, account]
+        accounts: [...s.accounts, { ...account, clientId: account.clientId || s.activeClientId }]
       })),
+      setAccounts: (accounts) => set({ accounts }),
+      mergeAccounts: (newAccounts) => set((s) => {
+        const activeId = s.activeClientId || 1
+        const tagged = newAccounts.map(a => ({
+          ...a,
+          clientId: a.clientId || activeId
+        }))
+        const existingCodes = new Set(s.accounts.filter(a => a.clientId === activeId).map(a => String(a.code)))
+        const filteredNew = tagged.filter(a => !existingCodes.has(String(a.code)))
+        const updatedExisting = s.accounts.map(a => {
+          if (a.clientId !== activeId) return a
+          const matched = tagged.find(na => String(na.code) === String(a.code))
+          return matched ? { ...a, ...matched } : a
+        })
+        return { accounts: [...updatedExisting, ...filteredNew] }
+      }),
 
       // ── Journal entries actions ──
       addJournalEntry: (entry) => {
-        const id = `JE-${1000 + get().journals.length + 1}`
+        const state = get()
+        const id = `JE-${1000 + state.journals.length + 1}`
+        const newEntry = {
+          ...entry,
+          id,
+          clientId: entry.clientId || state.activeClientId,
+          author: entry.author || 'Auditor',
+          date: entry.date || new Date().toISOString().split('T')[0],
+          status: entry.status || 'Posted'
+        }
         set((s) => ({
-          journals: [{ ...entry, id, status: 'Posted' }, ...s.journals]
+          journals: [newEntry, ...s.journals]
         }))
       },
 
@@ -378,6 +463,8 @@ export const useAccountingStore = create(
         journals: INITIAL_JOURNALS,
         workingPapers: INITIAL_PAPERS,
         documents: INITIAL_DOCUMENTS,
+        bankItems: INITIAL_BANK_ITEMS,
+        auditTrail: [],
         activeClientId: 1
       })
     }),

@@ -39,19 +39,22 @@ export default function AppShell() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.provident) {
+      const cleanups = []
       if (window.provident.onMenuNavigate) {
-        window.provident.onMenuNavigate((route) => {
+        const cleanup = window.provident.onMenuNavigate((route) => {
           navigate(route)
         })
+        if (typeof cleanup === 'function') cleanups.push(cleanup)
       }
       if (window.provident.onMenuLoadClient) {
-        window.provident.onMenuLoadClient((clientId) => {
+        const cleanup = window.provident.onMenuLoadClient((clientId) => {
           setActiveClientId(clientId)
           showToast(`✓ Switched active engagement file (Client ID: ${clientId})`)
         })
+        if (typeof cleanup === 'function') cleanups.push(cleanup)
       }
       if (window.provident.onMenuAction) {
-        window.provident.onMenuAction((action) => {
+        const cleanup = window.provident.onMenuAction((action) => {
           if (action === 'about') {
             setIsAboutOpen(true)
           } else if (action === 'backup') {
@@ -66,6 +69,10 @@ export default function AppShell() {
             }
           }
         })
+        if (typeof cleanup === 'function') cleanups.push(cleanup)
+      }
+      return () => {
+        cleanups.forEach(fn => fn())
       }
     }
   }, [navigate, activeClientId, setActiveClientId, exportEngagementBackup, rollForwardYear])

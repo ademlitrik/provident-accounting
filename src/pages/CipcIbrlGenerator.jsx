@@ -24,10 +24,36 @@ const MANDATORY_CIPC_TAGS = [
 export default function CipcIbrlGenerator() {
   const activeClientId = useAccountingStore(s => s.activeClientId)
   const clients = useAccountingStore(s => s.clients)
+  const accounts = useAccountingStore(s => s.accounts)
   const activeClient = clients.find(c => c.id === activeClientId) || clients[0]
+
+  const clientAccounts = accounts.filter(a => a.clientId === activeClientId)
+  const hasAccounts = clientAccounts.length > 0
+
+  const rev = hasAccounts 
+    ? clientAccounts.filter(a => a.type === 'Income').reduce((s, a) => s + Math.abs(a.balance || 0), 0)
+    : 741500
+  const cos = hasAccounts
+    ? clientAccounts.filter(a => a.type === 'Expense' && (a.code === '5000' || a.name.toLowerCase().includes('cost of sales') || a.name.toLowerCase().includes('merchandise'))).reduce((s, a) => s + Math.abs(a.balance || 0), 0)
+    : 312000
+  const gp = rev - cos
+  const exp = hasAccounts
+    ? clientAccounts.filter(a => a.type === 'Expense').reduce((s, a) => s + Math.abs(a.balance || 0), 0)
+    : 199900
+  const net = rev - exp
+  const assets = hasAccounts
+    ? clientAccounts.filter(a => a.type === 'Asset').reduce((s, a) => s + Math.abs(a.balance || 0), 0)
+    : 920000
 
   const clientTags = MANDATORY_CIPC_TAGS.map(t => {
     if (t.element === 'cipc-gen:EntityName') return { ...t, value: activeClient?.name || t.value }
+    if (t.element === 'cipc-gen:FinancialYearEnd') return { ...t, value: activeClient?.fyEnd || t.value }
+    if (t.element === 'ifrs-smes:Revenue') return { ...t, value: `R ${rev.toLocaleString()}` }
+    if (t.element === 'ifrs-smes:CostOfSales') return { ...t, value: `R ${cos.toLocaleString()}` }
+    if (t.element === 'ifrs-smes:GrossProfit') return { ...t, value: `R ${gp.toLocaleString()}` }
+    if (t.element === 'ifrs-smes:ProfitLoss') return { ...t, value: `R ${net.toLocaleString()}` }
+    if (t.element === 'ifrs-smes:Assets') return { ...t, value: `R ${assets.toLocaleString()}` }
+    if (t.element === 'ifrs-smes:EquityAndLiabilities') return { ...t, value: `R ${assets.toLocaleString()}` }
     return t
   })
 

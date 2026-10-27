@@ -1,6 +1,16 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const isDev = process.env.NODE_ENV === 'development';
+
+// ── React DevTools (development only) ────────────────────────────────────────
+if (!app.isPackaged) {
+  const { default: installExtension, REACT_DEVELOPER_TOOLS } = require('electron-devtools-installer');
+  installExtension(REACT_DEVELOPER_TOOLS)
+    .then((name) => console.log(`Added Extension: ${name}`))
+    .catch((err) => console.log('An error occurred: ', err));
+}
+
 
 let mainWindow;
 
@@ -280,7 +290,9 @@ function createApplicationMenu() {
   ];
 
   const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
+  // Menu is built for keyboard shortcuts (accelerators) only.
+  // The native menu bar is hidden — the custom React TitleBar is used instead.
+  Menu.setApplicationMenu(null);
 }
 
 function createWindow() {
@@ -289,7 +301,8 @@ function createWindow() {
     height: 900,
     minWidth: 1100,
     minHeight: 700,
-    frame: true, // Native Windows Title Bar & Standard Window Controls
+    frame: false, // Use custom React title bar instead of native Windows title bar
+    autoHideMenuBar: true, // Hide native menu bar unless Alt is pressed
     title: 'Provident Accounting & Audit — South Africa Practice Suite',
     backgroundColor: '#0f172a',
     icon: path.join(__dirname, '../public/icon.ico'),
@@ -304,7 +317,7 @@ function createWindow() {
   createApplicationMenu();
 
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5175');
+    mainWindow.loadURL('http://localhost:5205');
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -358,6 +371,66 @@ ipcMain.handle('dialog:save-file', async (_, options) => {
   return dialog.showSaveDialog(mainWindow, options);
 });
 
+// ── Desktop / Cloud Sync & Storage Operations ────────────────────────────────
+ipcMain.handle('storage:get-desktop-path', async () => {
+  return app.getPath('desktop');
+});
+
+ipcMain.handle('storage:create-client-folder', async (_, { clientName, folderPath }) => {
+  try {
+    const sanitized = (clientName || 'Provident_Client').replace(/[/\\?%*:|"<>]/g, '_');
+    const targetBase = folderPath || path.join(app.getPath('desktop'), 'Provident Clients');
+    const clientDir = path.join(targetBase, sanitized);
+    
+    // Create standard accounting folders (Working Papers, Financials, Evidence, Tax)
+    const subDirs = ['Audit Evidence & Documents', 'Working Papers', 'Trial Balance & Journals', 'Tax Schedules & CIPC'];
+    if (!fs.existsSync(clientDir)) {
+      fs.mkdirSync(clientDir, { recursive: true });
+    }
+    subDirs.forEach(sub => {
+      const subPath = path.join(clientDir, sub);
+      if (!fs.existsSync(subPath)) fs.mkdirSync(subPath, { recursive: true });
+    });
+
+    return { success: true, path: clientDir };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:save-client-file', async (_, { clientName, fileName, fileData, subFolder, folderPath }) => {
+  try {
+    const sanitizedClient = (clientName || 'Provident_Client').replace(/[/\\?%*:|"<>]/g, '_');
+    const targetBase = folderPath || path.join(app.getPath('desktop'), 'Provident Clients');
+    const targetDir = subFolder ? path.join(targetBase, sanitizedClient, subFolder) : path.join(targetBase, sanitizedClient);
+    
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+
+    const filePath = path.join(targetDir, fileName);
+    // If fileData is base64 string or buffer
+    if (typeof fileData === 'string' && fileData.startsWith('data:')) {
+      const base64Data = fileData.split(',')[1];
+      fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+    } else if (typeof fileData === 'string') {
+      fs.writeFileSync(filePath, fileData, 'utf-8');
+    } else {
+      fs.writeFileSync(filePath, Buffer.from(fileData));
+    }
+
+    return { success: true, filePath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('storage:open-folder-in-explorer', async (_, folderPath) => {
+  const target = folderPath || path.join(app.getPath('desktop'), 'Provident Clients');
+  shell.openPath(target);
+  return true;
+});
+
 // ── Database IPC handlers ────────────────────────────────────────────────────
 ipcMain.handle('db:get-clients', () => getClients());
 ipcMain.handle('db:get-client', (_, id) => getClient(id));
@@ -375,3 +448,48 @@ ipcMain.handle('security:encrypt', (_, text) => securityEngine.encryptField(text
 ipcMain.handle('security:decrypt', (_, payload) => securityEngine.decryptField(payload));
 ipcMain.handle('security:log-audit', (_, { action, actor, details }) => securityEngine.logComplianceEvent(action, actor, details));
 ipcMain.handle('security:verify-chain', () => securityEngine.verifyChainIntegrity());
+
+// ── Native Print & Page Setup Handlers ───────────────────────────────────────
+ipcMain.handle('print:page', async (_, options = {}) => {
+  if (!mainWindow) return { success: false, error: 'Main window not found' };
+  try {
+    mainWindow.webContents.print({
+      silent: false,
+      printBackground: true,
+      color: true,
+      pageSize: 'A4',
+      margins: { marginType: 'custom', top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 },
+      ...options
+    }, (success, failureReason) => {
+      console.log(`Print result: ${success}, reason: ${failureReason}`);
+    });
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('print:to-pdf', async (_, options = {}) => {
+  if (!mainWindow) return { success: false, error: 'Main window not found' };
+  try {
+    const data = await mainWindow.webContents.printToPDF({
+      printBackground: true,
+      pageSize: 'A4',
+      landscape: options.landscape || false,
+      margins: { marginType: 'custom', top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 },
+      ...options
+    });
+    return { success: true, data: Array.from(data) };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('print:get-printers', async () => {
+  if (!mainWindow) return [];
+  try {
+    return await mainWindow.webContents.getPrintersAsync();
+  } catch (_) {
+    return [];
+  }
+});

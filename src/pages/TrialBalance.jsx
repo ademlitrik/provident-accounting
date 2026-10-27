@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Download, CheckCircle2, AlertTriangle, FileSpreadsheet, Scale, Printer, RefreshCw } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import { Download, CheckCircle2, AlertTriangle, FileSpreadsheet, Scale, Printer, RefreshCw } from 'lucide-react'
 import { useAccountingStore, formatCurrency, getCurrencyCode } from '@/store/accountingStore'
 import { exportTrialBalancePdf } from '@/utils/pdfExport'
 
@@ -25,13 +25,13 @@ const FALLBACK_TB = [
 ]
 
 export default function TrialBalance() {
-  const firm = useAuthStore(s => s.firm)
-  const activeClientId = useAccountingStore(s => s.activeClientId)
-  const clients = useAccountingStore(s => s.clients)
-  const accounts = useAccountingStore(s => s.accounts)
-  const activeClient = clients.find(c => c.id === activeClientId) || clients[0]
-
-  const currCode = getCurrencyCode(firm?.currency)
+  const firm = useAuthStore(s => s.firm);
+  const activeClientId = useAccountingStore(s => s.activeClientId);
+  const clients = useAccountingStore(s => s.clients);
+  const allAccounts = useAccountingStore(s => s.accounts);
+  const accounts = allAccounts.filter(a => a.clientId === activeClientId);
+  const activeClient = clients.find(c => c.id === activeClientId) || clients[0];
+  const currCode = getCurrencyCode(firm?.currency);
 
   // Use accounts from store if available, or fallback
   const tbData = accounts && accounts.length > 0
@@ -116,7 +116,7 @@ export default function TrialBalance() {
               {firm?.name || 'Provident Financial Consultants'}
             </span>
             <span className="text-[10px] text-slate-600 block">
-              Audit Parity: {isBalanced ? '✓ Verified (0 Variance)' : `⚠ Out of Balance: R ${diff.toLocaleString()}`}
+              Audit Parity: {isBalanced ? '✓ Verified (0 Variance)' : `⚠ Out of Balance: ${formatCurrency(diff, firm?.currency)}`}
             </span>
             <span className="text-[10px] text-slate-500 block">
               Date: {new Date().toLocaleDateString()}
@@ -129,7 +129,7 @@ export default function TrialBalance() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 print:hidden">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900">
-            Trial Balance Sheet
+            {activeClient?.name ?? 'Trial Balance'} Sheet
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Full debit and credit balance sheet as at <strong>31 October 2024</strong> · <strong>{activeClient?.name}</strong>

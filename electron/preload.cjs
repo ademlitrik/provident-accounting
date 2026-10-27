@@ -10,6 +10,14 @@ contextBridge.exposeInMainWorld('provident', {
   openFile: (options) => ipcRenderer.invoke('dialog:open-file', options),
   saveFile: (options) => ipcRenderer.invoke('dialog:save-file', options),
 
+  // Desktop / Cloud & SharePoint Storage Operations
+  storage: {
+    getDesktopPath: () => ipcRenderer.invoke('storage:get-desktop-path'),
+    createClientFolder: (data) => ipcRenderer.invoke('storage:create-client-folder', data),
+    saveClientFile: (data) => ipcRenderer.invoke('storage:save-client-file', data),
+    openFolder: (path) => ipcRenderer.invoke('storage:open-folder-in-explorer', path),
+  },
+
   // Database API
   db: {
     getClients: () => ipcRenderer.invoke('db:get-clients'),
@@ -32,15 +40,28 @@ contextBridge.exposeInMainWorld('provident', {
     verifyChain: () => ipcRenderer.invoke('security:verify-chain'),
   },
 
+  // Native Print & Page Setup Controls
+  print: {
+    printPage: (options) => ipcRenderer.invoke('print:page', options),
+    printToPDF: (options) => ipcRenderer.invoke('print:to-pdf', options),
+    getPrinters: () => ipcRenderer.invoke('print:get-printers'),
+  },
+
   // Native Menu Listeners
   onMenuNavigate: (callback) => {
-    ipcRenderer.on('menu-navigate', (event, route) => callback(route));
+    const handler = (event, route) => callback(route);
+    ipcRenderer.on('menu-navigate', handler);
+    return () => ipcRenderer.removeListener('menu-navigate', handler);
   },
   onMenuAction: (callback) => {
-    ipcRenderer.on('menu-action', (event, action) => callback(action));
+    const handler = (event, action) => callback(action);
+    ipcRenderer.on('menu-action', handler);
+    return () => ipcRenderer.removeListener('menu-action', handler);
   },
   onMenuLoadClient: (callback) => {
-    ipcRenderer.on('menu-load-client', (event, clientId) => callback(clientId));
+    const handler = (event, clientId) => callback(clientId);
+    ipcRenderer.on('menu-load-client', handler);
+    return () => ipcRenderer.removeListener('menu-load-client', handler);
   },
 
   // Platform info

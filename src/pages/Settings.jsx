@@ -1,11 +1,15 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
 import { getGeminiKey, setGeminiKey } from '@/ai/gemini'
 import OfficePersonalizationSettings from '@/components/settings/OfficePersonalizationSettings'
+import PracticeManagement from '@/pages/PracticeManagement'
+import UserManagement from '@/pages/UserManagement'
 import {
   Building2, User, Key, Globe, Palette, Shield, Save, CheckCircle,
-  Eye, EyeOff, Laptop, Upload, Image as ImageIcon, Trash2, Info, Award, ExternalLink
+  Eye, EyeOff, Laptop, Upload, Image as ImageIcon, Trash2, Info, Award, ExternalLink,
+  Check, AlertCircle, Clock, Users, Printer
 } from 'lucide-react'
 import afrovisionLogo from '@/assets/afrovision_logo.png'
 
@@ -13,6 +17,9 @@ const tabs = [
   { id: 'personalization', icon: Palette,   label: 'Personalization' },
   { id: 'firm',            icon: Building2, label: 'Firm Details' },
   { id: 'profile',         icon: User,      label: 'User Profile' },
+  { id: 'printing',        icon: Printer,   label: 'Print & Layout Setup' },
+  { id: 'timesheets',      icon: Clock,     label: 'Practice Timesheets & WIP' },
+  { id: 'users',           icon: Users,     label: 'User Management' },
   { id: 'api',             icon: Key,       label: 'AI & Intelligence' },
   { id: 'language',        icon: Globe,     label: 'Language & Region' },
   { id: 'security',        icon: Shield,    label: 'Security' },
@@ -36,13 +43,26 @@ export default function Settings() {
   const firm = useAuthStore(s => s.firm)
   const updateFirm = useAuthStore(s => s.updateFirm)
   const user = useAuthStore(s => s.user)
+  const users = useAuthStore(s => s.users)
+  const updateUser = useAuthStore(s => s.updateUser)
 
   const theme = useAppStore(s => s.theme)
   const setTheme = useAppStore(s => s.setTheme)
   const officeBackground = useAppStore(s => s.officeBackground)
   const setOfficeBackground = useAppStore(s => s.setOfficeBackground)
+  const language = useAppStore(s => s.language) || 'en'
+  const setLanguage = useAppStore(s => s.setLanguage)
 
-  const [activeTab, setActiveTab] = useState('personalization')
+  const [searchParams] = useSearchParams()
+  const initialTab = searchParams.get('tab') || 'personalization'
+  const [activeTab, setActiveTab] = useState(initialTab)
+
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab')
+    if (tabFromUrl && tabs.some(t => t.id === tabFromUrl)) {
+      setActiveTab(tabFromUrl)
+    }
+  }, [searchParams])
   const [firmName, setFirmName] = useState(firm.name || 'Provident Accounting & Advisory')
   const [currency, setCurrency] = useState(firm.currency || 'ZAR (R)')
   const [fyEnd, setFyEnd] = useState(firm.fiscalYearEnd || '12-31')
@@ -52,10 +72,30 @@ export default function Settings() {
   const [firmLogo, setFirmLogo] = useState(firm.logo || null)
   const logoInputRef = useRef(null)
 
+  // Profile Form State
+  const [profileName, setProfileName] = useState(user?.name || '')
+  const [profileEmail, setProfileEmail] = useState(user?.email || '')
+  const [profileRole, setProfileRole] = useState(user?.role || 'Senior Audit Partner')
+
+  // Password Security Form State
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [securityError, setSecurityError] = useState('')
+  const [securitySuccess, setSecuritySuccess] = useState('')
+
   const [geminiKey, setGeminiKeyState] = useState(getGeminiKey())
   const [showKey, setShowKey] = useState(false)
-  const [lang, setLang] = useState('en')
   const [saved, setSaved] = useState('')
+
+  // Sync profile state when user updates
+  useEffect(() => {
+    if (user) {
+      setProfileName(user.name || '')
+      setProfileEmail(user.email || '')
+      setProfileRole(user.role || 'Senior Audit Partner')
+    }
+  }, [user])
 
   const isDark = theme === 'Dark Gray' || theme === 'Black'
 
@@ -81,12 +121,70 @@ export default function Settings() {
       logo: firmLogo
     })
     setSaved('firm')
-    setTimeout(() => setSaved(''), 2000)
+    setTimeout(() => setSaved(''), 2500)
+  }
+
+  const saveProfile = (e) => {
+    e?.preventDefault()
+    if (!user?.id) return
+    const res = updateUser(user.id, {
+      name: profileName,
+      email: profileEmail,
+      role: profileRole
+    })
+    if (res.ok) {
+      setSaved('profile')
+      setTimeout(() => setSaved(''), 2500)
+    } else {
+      alert(res.error || 'Failed to update profile.')
+    }
+  }
+
+  const handlePasswordUpdate = (e) => {
+    e?.preventDefault()
+    setSecurityError('')
+    setSecuritySuccess('')
+
+    if (!user?.id) return
+
+    // Find the stored user to verify current password
+    const stored = users.find(u => u.id === user.id)
+    if (stored?.password && currentPassword !== stored.password) {
+      setSecurityError('Current password does not match records.')
+      return
+    }
+
+    if (newPassword.length < 6) {
+      setSecurityError('New password must be at least 6 characters.')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setSecurityError('New passwords do not match.')
+      return
+    }
+
+    const res = updateUser(user.id, { password: newPassword })
+    if (res.ok) {
+      setSecuritySuccess('Password successfully updated!')
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setTimeout(() => setSecuritySuccess(''), 3000)
+    } else {
+      setSecurityError(res.error || 'Failed to update password.')
+    }
   }
 
   const saveApiKey = () => {
     setGeminiKey(geminiKey)
     setSaved('api')
+    setTimeout(() => setSaved(''), 2500)
+  }
+
+  const handleSelectLanguage = (code) => {
+    setLanguage(code)
+    setSaved('language')
     setTimeout(() => setSaved(''), 2000)
   }
 
@@ -349,6 +447,166 @@ export default function Settings() {
                   </span>
                 </div>
               </div>
+
+              <form onSubmit={saveProfile} className="space-y-4 pt-2">
+                <div>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5 block">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    required
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#5B5FC7]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5 block">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={profileEmail}
+                    onChange={(e) => setProfileEmail(e.target.value)}
+                    required
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#5B5FC7]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5 block">
+                    Professional Role
+                  </label>
+                  <select
+                    value={profileRole}
+                    onChange={(e) => setProfileRole(e.target.value)}
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#5B5FC7]"
+                  >
+                    <option value="Senior Audit Partner">Senior Audit Partner</option>
+                    <option value="Engagement Partner">Engagement Partner</option>
+                    <option value="Senior Audit Manager">Senior Audit Manager</option>
+                    <option value="Audit Senior">Audit Senior</option>
+                    <option value="Audit Trainee">Audit Trainee</option>
+                    <option value="Reviewer / EQCR">Reviewer / EQCR</option>
+                  </select>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 bg-[#5B5FC7] hover:bg-[#4A4EB5] text-white text-xs font-medium px-4 py-2 rounded transition-colors shadow-sm cursor-pointer"
+                  >
+                    {saved === 'profile' ? <CheckCircle size={14} /> : <Save size={14} />}
+                    <span>{saved === 'profile' ? 'Profile Saved' : 'Save Profile Changes'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* TAB: Printing & Layout Setup */}
+          {activeTab === 'printing' && (
+            <div className="space-y-6 max-w-2xl">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <Printer size={18} className="text-[#5B5FC7]" />
+                  <span>Audit Print & Page Setup Configuration</span>
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Configure default A4 paper size, continuous ledger flow, orientation, margins, and letterhead stamps for IRBA/SAICA compliance.
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                      Paper Size Standards
+                    </label>
+                    <select
+                      defaultValue="A4"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1.5 focus:outline-none focus:border-[#5B5FC7]"
+                    >
+                      <option value="A4">A4 (210 × 297 mm) — SA Statutory Standard</option>
+                      <option value="Letter">US Letter (8.5 × 11 in)</option>
+                      <option value="Legal">Legal (8.5 × 14 in)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                      Default Page Orientation
+                    </label>
+                    <select
+                      defaultValue="portrait"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1.5 focus:outline-none focus:border-[#5B5FC7]"
+                    >
+                      <option value="portrait">Portrait (Financials & Working Papers)</option>
+                      <option value="landscape">Landscape (Multi-Column Trial Balances & General Ledgers)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                    Statutory Print Options
+                  </span>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-700 dark:text-slate-300">
+                    <input type="checkbox" defaultChecked className="rounded text-[#5B5FC7]" />
+                    <span>Include Official Firm Letterhead Banner & IRBA Registration #</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-700 dark:text-slate-300">
+                    <input type="checkbox" defaultChecked className="rounded text-[#5B5FC7]" />
+                    <span>Enable continuous multi-page table header repetition</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-700 dark:text-slate-300">
+                    <input type="checkbox" defaultChecked className="rounded text-[#5B5FC7]" />
+                    <span>Automatically suppress application shell chrome, menus, and sidebars</span>
+                  </label>
+                </div>
+
+                <div className="pt-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded text-xs font-semibold hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    <Printer size={13} />
+                    <span>Test Printer Output</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSaved('printing')
+                      setTimeout(() => setSaved(null), 2500)
+                    }}
+                    className="inline-flex items-center gap-1.5 bg-[#5B5FC7] hover:bg-[#4A4EB5] text-white px-4 py-1.5 rounded text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                  >
+                    {saved === 'printing' ? <CheckCircle size={14} /> : <Save size={14} />}
+                    <span>{saved === 'printing' ? 'Print Settings Saved' : 'Save Print Preferences'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: Practice Timesheets & WIP */}
+          {activeTab === 'timesheets' && (
+            <div className="space-y-4">
+              <PracticeManagement />
+            </div>
+          )}
+
+          {/* TAB: User Management */}
+          {activeTab === 'users' && (
+            <div className="space-y-4">
+              <UserManagement />
             </div>
           )}
 
@@ -420,19 +678,27 @@ export default function Settings() {
                 </p>
               </div>
 
+              {saved === 'language' && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded text-xs flex items-center gap-2">
+                  <CheckCircle size={14} className="text-emerald-600 shrink-0" />
+                  <span>Language preference saved to workspace.</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-2.5">
                 {languages.map((l) => (
                   <button
                     key={l.code}
-                    onClick={() => setLang(l.code)}
-                    className={`flex items-center gap-3 p-3 rounded border text-left text-xs transition-colors ${
-                      lang === l.code
-                        ? 'border-[#5B5FC7] bg-[#5B5FC7]/10 text-[#5B5FC7] font-semibold'
+                    onClick={() => handleSelectLanguage(l.code)}
+                    className={`flex items-center gap-3 p-3 rounded border text-left text-xs transition-colors cursor-pointer ${
+                      language === l.code
+                        ? 'border-[#5B5FC7] bg-[#5B5FC7]/10 text-[#5B5FC7] font-semibold ring-1 ring-[#5B5FC7]'
                         : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-300'
                     }`}
                   >
                     <span className="text-base">{l.flag}</span>
-                    <span>{l.name}</span>
+                    <span className="flex-1">{l.name}</span>
+                    {language === l.code && <Check size={14} className="text-[#5B5FC7]" />}
                   </button>
                 ))}
               </div>
@@ -450,13 +716,31 @@ export default function Settings() {
                   Manage application passcode, user sessions, and database lockouts.
                 </p>
               </div>
-              <div className="space-y-3">
+
+              {securityError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded text-xs flex items-center gap-2">
+                  <AlertCircle size={14} className="text-rose-600 shrink-0" />
+                  <span>{securityError}</span>
+                </div>
+              )}
+
+              {securitySuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded text-xs flex items-center gap-2">
+                  <CheckCircle size={14} className="text-emerald-600 shrink-0" />
+                  <span>{securitySuccess}</span>
+                </div>
+              )}
+
+              <form onSubmit={handlePasswordUpdate} className="space-y-3">
                 <div>
                   <label className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5 block">
                     Current Password
                   </label>
                   <input
                     type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    required
                     placeholder="••••••••"
                     className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#5B5FC7]"
                   />
@@ -467,18 +751,34 @@ export default function Settings() {
                   </label>
                   <input
                     type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    placeholder="••••••••"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#5B5FC7]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5 block">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
                     placeholder="••••••••"
                     className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#5B5FC7]"
                   />
                 </div>
                 <button
-                  type="button"
-                  className="inline-flex items-center gap-2 bg-[#5B5FC7] hover:bg-[#4A4EB5] text-white text-xs font-medium px-4 py-2 rounded transition-colors shadow-sm"
+                  type="submit"
+                  className="inline-flex items-center gap-2 bg-[#5B5FC7] hover:bg-[#4A4EB5] text-white text-xs font-medium px-4 py-2 rounded transition-colors shadow-sm cursor-pointer"
                 >
                   <Shield size={14} />
                   <span>Update Password</span>
                 </button>
-              </div>
+              </form>
             </div>
           )}
 

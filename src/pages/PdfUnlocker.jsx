@@ -4,14 +4,17 @@ import {
   Key, Unlock, ShieldAlert, CheckCircle2, Download, Eye, AlertCircle,
   FileCheck2, RefreshCw, Lock, Files, RotateCw, Trash2, Stamp, ShieldCheck,
   Minimize2, MoveUp, MoveDown, Plus, FileText, AlertTriangle, ArrowRight,
-  Printer, Layers, Shield, FileEdit, Check, HelpCircle, Tag, Type, MousePointer
+  Printer, Layers, Shield, FileEdit, Check, HelpCircle, Tag, Type, MousePointer, Save, Upload
 } from 'lucide-react'
 import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib'
+import * as pdfjsLib from 'pdfjs-dist'
+// configure pdfjs worker (use CDN matching installed version)
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 import { useAccountingStore } from '@/store/accountingStore'
 import { useAuthStore } from '@/store/authStore'
 
 const TOOLS = [
-  { id: 'edit', label: 'Edit a PDF', icon: FileEdit, badge: 'ACROBAT #2' },
+  // { id: 'edit', label: 'Edit a PDF', icon: FileEdit, badge: 'ACROBAT #2' }, // Edit tool disabled
   { id: 'unlock', label: 'Password Stripper', icon: Unlock, badge: 'AUTO-STRIP' },
   { id: 'merge', label: 'Combine & Merge', icon: Files, badge: 'MULTI-PDF' },
   { id: 'organize', label: 'Organize & Rotate', icon: RotateCw, badge: 'PAGES' },
@@ -46,6 +49,7 @@ export default function PdfUnlocker() {
   const [statusMessage, setStatusMessage] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [downloadUrl, setDownloadUrl] = useState(null)
+  const previewRef = useRef(null)
   const [downloadFilename, setDownloadFilename] = useState('')
 
   const firm = useAuthStore(s => s.firm)
@@ -352,7 +356,33 @@ export default function PdfUnlocker() {
     setIsProcessing(false)
   }
 
-  // ── 1. STRIP PASSWORD ACTION ──────────────────────────────────
+  useEffect(() => {
+  if (!downloadUrl) return;
+  const renderPreview = async () => {
+    try {
+      const loadingTask = pdfjsLib.getDocument(downloadUrl);
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 1 });
+      const canvas = previewRef.current;
+      if (!canvas) return;
+      const containerWidth = canvas.parentElement?.clientWidth || 600;
+      const scale = containerWidth / viewport.width;
+      const scaledViewport = page.getViewport({ scale });
+      const context = canvas.getContext('2d');
+      canvas.height = scaledViewport.height;
+      canvas.width = scaledViewport.width;
+      await page.render({ canvasContext: context, viewport: scaledViewport }).promise;
+    } catch (e) {
+      console.error('Preview render error:', e);
+    }
+  };
+  renderPreview();
+  return () => {
+    // clean up pdfjs document if possible
+    try { pdfjsLib.getDocument(downloadUrl).destroy?.(); } catch (_) {}
+  };
+}, [downloadUrl]);
   const handleStripPassword = async () => {
     setIsProcessing(true)
     setStatusMessage('Bypassing permissions dictionary and stripping security locks...')
@@ -361,7 +391,15 @@ export default function PdfUnlocker() {
       let doc
       if (fileBytes) {
         if (unlockMode === 'direct') {
-          doc = await PDFDocument.load(fileBytes, { ignoreEncryption: true })
+          try {
+            doc = await PDFDocument.load(fileBytes, { ignoreEncryption: true })
+          } catch (e) {
+            if (knownPassword) {
+              doc = await PDFDocument.load(fileBytes, { password: knownPassword })
+            } else {
+              throw e
+            }
+          }
         } else {
           doc = await PDFDocument.load(fileBytes, { password: knownPassword })
         }
@@ -619,14 +657,14 @@ export default function PdfUnlocker() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              Audit PDF Studio & Security Stripper
+              {activeClient?.name ?? 'Audit PDF Studio'}
             </h1>
             <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded">
               ACROBAT & DRAFTWORX COMPATIBLE
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Full PDF Document Editor (Tool #2), Password Stripper, Dossier Combiner, Working Paper Stamper & Redaction Bench.
+            {`FY End: ${activeClient?.fyEnd ?? ''} | Audit Working Papers & Lead Schedules | Bank Statement Reconciliation: Trial Balance Sheet | General Ledger Journal Entries: Chart of Accounts`}
           </p>
         </div>
 

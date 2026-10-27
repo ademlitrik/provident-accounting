@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Calculator, Download, Printer, ShieldCheck,
-  AlertCircle, CheckCircle2, FileText, ArrowRight, DollarSign
+  AlertCircle, CheckCircle2, FileText, ArrowRight, DollarSign, RefreshCw
 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
 import { useAccountingStore, formatCurrency, getCurrencyCode } from '@/store/accountingStore'
+import { exportTaxComputationPdf } from '@/utils/pdfExport'
 
 export default function TaxComputation() {
   const theme = useAppStore(s => s.theme)
@@ -14,18 +15,37 @@ export default function TaxComputation() {
   const firm = useAuthStore(s => s.firm)
   const activeClientId = useAccountingStore(s => s.activeClientId)
   const clients = useAccountingStore(s => s.clients)
+  const accounts = useAccountingStore(s => s.accounts)
+  const addRecentDocument = useAccountingStore(s => s.addRecentDocument)
   const activeClient = clients.find(c => c.id === activeClientId) || clients[0]
 
   const currCode = getCurrencyCode(firm?.currency)
 
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [pdfNotification, setPdfNotification] = useState('')
+
+  // Calculate dynamic net profit from imported accounts
+  const clientAccounts = useMemo(() => accounts.filter(a => a.clientId === activeClientId), [accounts, activeClientId])
+  const dynamicProfit = useMemo(() => {
+    if (clientAccounts.length === 0) return 229600
+    const income = clientAccounts.filter(a => a.type === 'Income').reduce((s, a) => s + Math.abs(a.balance || 0), 0)
+    const expense = clientAccounts.filter(a => a.type === 'Expense').reduce((s, a) => s + Math.abs(a.balance || 0), 0)
+    return income > 0 ? (income - expense) : 229600
+  }, [clientAccounts])
+
   // Standard corporate tax inputs
-  const [netAccountingProfit, setNetProfit] = useState(229600)
+  const [netAccountingProfit, setNetProfit] = useState(dynamicProfit)
   const [depreciationAddBack, setDepreciation] = useState(14400)
   const [taxCapitalAllowance, setCapitalAllowance] = useState(18200)
   const [entertainmentNonDeductible, setEntertainment] = useState(2500)
   const [finesAndPenalties, setFines] = useState(1200)
   const [taxRate, setTaxRate] = useState(27) // South Africa SARS CIT rate: 27%
   const [provisionalTaxPaid, setProvisionalPaid] = useState(45000)
+
+  // Sync net profit when client or imported accounts change
+  useEffect(() => {
+    setNetProfit(dynamicProfit)
+  }, [dynamicProfit])
 
   // Calculations
   const totalAddBacks = depreciationAddBack + entertainmentNonDeductible + finesAndPenalties
@@ -63,10 +83,79 @@ export default function TaxComputation() {
     document.body.removeChild(link)
   }
 
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true)
+    setPdfNotification('Generating audited Corporate Tax Computation (ITR14) PDF...')
+    try {
+      const filename = await exportTaxComputationPdf({
+        client: activeClient,
+        firm,
+        taxData: {
+          taxYear: '2024',
+          taxRate,
+          netAccountingProfit,
+          depreciationAddBack,
+          entertainmentNonDeductible,
+          finesAndPenalties,
+          totalAddBacks,
+          taxCapitalAllowance,
+          taxableIncome,
+          grossTaxLiability,
+          provisionalTaxPaid,
+          netTaxPayable
+        },
+        currency: firm?.currency
+      })
+      addRecentDocument({
+        name: filename,
+        type: 'Tax Computation (PDF)',
+        size: '118 KB',
+        wpRef: 'TAX-2024'
+      })
+      setPdfNotification(`✓ Success! Downloaded ${filename}`)
+      setTimeout(() => setPdfNotification(''), 4000)
+    } catch (err) {
+      setPdfNotification(`PDF Generation Error: ${err.message}`)
+    }
+    setIsExportingPdf(false)
+  }
+
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6" style={{ userSelect: 'text' }}>
+      {/* ── PRINT-ONLY OFFICIAL AUDIT LETTERHEAD ── */}
+      <div className="hidden print:block pb-4 mb-4 border-b-2 border-slate-900 text-slate-900">
+        <div className="flex items-start justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 block">
+              SARS Statutory Corporate Tax Dossier (ITR14)
+            </span>
+            <h1 className="text-xl font-extrabold uppercase tracking-tight text-slate-900">
+              {activeClient?.name || 'Acme Corporation (Pty) Ltd'}
+            </h1>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Tax Year 2024 · Income Tax Ref: {activeClient?.taxNo || '9284102941'}
+            </p>
+          </div>
+          <div className="text-right">
+            <span className="text-xs font-bold uppercase text-slate-900 block">
+              {firm?.name || 'Provident Financial Consultants'}
+            </span>
+            <span className="text-[10px] text-slate-600 block">
+              Tax Practitioner PR-009841 · Printed: {new Date().toLocaleDateString()}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {pdfNotification && (
+        <div className="p-3 bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-md text-xs font-medium flex items-center gap-2 print:hidden animate-in fade-in">
+          <CheckCircle2 size={16} className="text-indigo-600 shrink-0" />
+          <span>{pdfNotification}</span>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b"
+      <div className="flex items-center justify-between pb-4 border-b print:hidden"
            style={{ borderColor: isDark ? '#333339' : '#E5E7EB' }}>
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
@@ -91,10 +180,18 @@ export default function TaxComputation() {
           </button>
           <button
             onClick={handleExportCsv}
-            className="flex items-center gap-1.5 bg-[#5B5FC7] hover:bg-[#4A4EB5] text-white px-3.5 py-1.5 rounded text-xs font-medium transition-colors shadow-sm cursor-pointer"
+            className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded text-xs hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
           >
             <Download size={13} />
-            <span>Export Tax Return Pack</span>
+            <span>Export CSV</span>
+          </button>
+          <button
+            onClick={handleExportPdf}
+            disabled={isExportingPdf}
+            className="flex items-center gap-1.5 bg-[#5B5FC7] hover:bg-[#4A4EB5] disabled:opacity-50 text-white px-3.5 py-1.5 rounded text-xs font-medium transition-colors shadow-sm cursor-pointer"
+          >
+            {isExportingPdf ? <RefreshCw size={13} className="animate-spin" /> : <Download size={13} />}
+            <span>Export to PDF (.pdf)</span>
           </button>
         </div>
       </div>

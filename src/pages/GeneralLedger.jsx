@@ -1,11 +1,23 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, Search, Filter, Download, X } from 'lucide-react'
 import { useAccountingStore } from '@/store/accountingStore'
 
 export default function GeneralLedger() {
-  const journals = useAccountingStore(s => s.journals)
+  const activeClientId = useAccountingStore(s => s.activeClientId)
+  const clients = useAccountingStore(s => s.clients)
+  const activeClient = clients.find(c => c.id === activeClientId) ?? clients[0]
   const addJournalEntry = useAccountingStore(s => s.addJournalEntry)
-  const accounts = useAccountingStore(s => s.accounts)
+  const journalsList = useAccountingStore(s => s.journals)
+  const accountsList = useAccountingStore(s => s.accounts)
+
+  const journals = useMemo(
+    () => journalsList.filter(j => j.clientId === activeClientId),
+    [journalsList, activeClientId]
+  )
+  const accounts = useMemo(
+    () => accountsList.filter(a => a.clientId === activeClientId),
+    [accountsList, activeClientId]
+  )
 
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -18,33 +30,43 @@ export default function GeneralLedger() {
     author: 'Auditor Partner',
   })
 
-  const filtered = journals.filter(e =>
-    e.description.toLowerCase().includes(search.toLowerCase()) ||
-    e.id.toLowerCase().includes(search.toLowerCase()) ||
-    e.debit.toLowerCase().includes(search.toLowerCase()) ||
-    e.credit.toLowerCase().includes(search.toLowerCase())
-  )
+  // --------‑ Memoised search filter -----
+  const filtered = useMemo(() => {
+    const lowered = search.toLowerCase()
+    return journals.filter(e =>
+      e.description.toLowerCase().includes(lowered) ||
+      e.id.toLowerCase().includes(lowered) ||
+      e.debit.toLowerCase().includes(lowered) ||
+      e.credit.toLowerCase().includes(lowered)
+    )
+  }, [journals, search])
 
   const handleExport = () => {
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + "Reference,Date,Description,Debit Account,Credit Account,Amount,Status,Author\n"
-      + journals.map(j => `"${j.id}","${j.date}","${j.description}","${j.debit}","${j.credit}",${j.amount},"${j.status}","${j.author}"`).join("\n")
-    
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      'Reference,Date,Description,Debit Account,Credit Account,Amount,Status,Author\n' +
+      journals
+        .map(
+          j =>
+            `"${j.id}","${j.date}","${j.description}","${j.debit}","${j.credit}",${j.amount},"${j.status}","${j.author}"`
+        )
+        .join('\n')
+
     const encodedUri = encodeURI(csvContent)
-    const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
-    link.setAttribute("download", "Provident_General_Ledger.csv")
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', 'Provident_General_Ledger.csv')
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = e => {
     e.preventDefault()
     if (!formData.description.trim() || !formData.amount) return
     addJournalEntry({
       ...formData,
-      amount: parseFloat(formData.amount) || 0
+      amount: parseFloat(formData.amount) || 0,
     })
     setIsModalOpen(false)
     setFormData({
@@ -63,10 +85,11 @@ export default function GeneralLedger() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900">
-            General Ledger Journal Entries
+            {activeClient?.name ?? 'General Ledger'} Journal Entries
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            {journals.length} double-entry transactions recorded for audit engagement
+            {journals.length} double-entry transactions recorded for audit
+            engagement
           </p>
         </div>
 
@@ -91,7 +114,10 @@ export default function GeneralLedger() {
       {/* Search & Actions */}
       <div className="flex items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
           <input
             type="text"
             value={search}
@@ -119,9 +145,13 @@ export default function GeneralLedger() {
           <tbody className="divide-y divide-slate-100">
             {filtered.map(entry => (
               <tr key={entry.id} className="hover:bg-slate-50/80 transition-colors">
-                <td className="px-5 py-3 font-mono font-bold text-indigo-600">{entry.id}</td>
+                <td className="px-5 py-3 font-mono font-bold text-indigo-600">
+                  {entry.id}
+                </td>
                 <td className="px-5 py-3 text-slate-500">{entry.date}</td>
-                <td className="px-5 py-3 font-medium text-slate-900">{entry.description}</td>
+                <td className="px-5 py-3 font-medium text-slate-900">
+                  {entry.description}
+                </td>
                 <td className="px-5 py-3 text-slate-600">{entry.debit}</td>
                 <td className="px-5 py-3 text-slate-600">{entry.credit}</td>
                 <td className="px-5 py-3 text-right font-mono font-bold text-slate-900">
@@ -143,8 +173,13 @@ export default function GeneralLedger() {
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-lg border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h2 className="text-sm font-bold text-slate-900">Create Double-Entry Journal</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <h2 className="text-sm font-bold text-slate-900">
+                Create Double-Entry Journal
+              </h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -152,63 +187,87 @@ export default function GeneralLedger() {
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Posting Date</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Posting Date
+                  </label>
                   <input
                     type="date"
                     required
                     value={formData.date}
-                    onChange={e => setFormData({ ...formData, date: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, date: e.target.value })
+                    }
                     className="w-full border border-slate-300 rounded px-3 py-1.5 focus:outline-none focus:border-indigo-600"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Amount ($)</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Amount ($)
+                  </label>
                   <input
                     type="number"
                     step="0.01"
                     required
                     placeholder="0.00"
                     value={formData.amount}
-                    onChange={e => setFormData({ ...formData, amount: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, amount: e.target.value })
+                    }
                     className="w-full border border-slate-300 rounded px-3 py-1.5 focus:outline-none focus:border-indigo-600"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">Transaction Narrative / Description</label>
+                <label className="font-semibold text-slate-700 block mb-1">
+                  Transaction Narrative / Description
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Audit Adjustment for Bad Debt Provision"
                   value={formData.description}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                  onChange={e =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                   className="w-full border border-slate-300 rounded px-3 py-1.5 focus:outline-none focus:border-indigo-600"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Debit Account</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Debit Account
+                  </label>
                   <select
                     value={formData.debit}
-                    onChange={e => setFormData({ ...formData, debit: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, debit: e.target.value })
+                    }
                     className="w-full border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:border-indigo-600 bg-white"
                   >
                     {accounts.map(a => (
-                      <option key={a.code} value={`${a.code} ${a.name}`}>{a.code} {a.name}</option>
+                      <option key={a.code} value={`${a.code} ${a.name}`}>
+                        {a.code} {a.name}
+                      </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Credit Account</label>
+                  <label className="font-semibold text-slate-700 block mb-1">
+                    Credit Account
+                  </label>
                   <select
                     value={formData.credit}
-                    onChange={e => setFormData({ ...formData, credit: e.target.value })}
+                    onChange={e =>
+                      setFormData({ ...formData, credit: e.target.value })
+                    }
                     className="w-full border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:border-indigo-600 bg-white"
                   >
                     {accounts.map(a => (
-                      <option key={a.code} value={`${a.code} ${a.name}`}>{a.code} {a.name}</option>
+                      <option key={a.code} value={`${a.code} ${a.name}`}>
+                        {a.code} {a.name}
+                      </option>
                     ))}
                   </select>
                 </div>

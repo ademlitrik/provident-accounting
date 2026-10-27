@@ -319,7 +319,7 @@ export default function TitleBar({ onOpenAbout }) {
                     className="w-full text-left px-3 py-1.5 flex items-center gap-2 text-slate-700 hover:bg-slate-50"
                   >
                     <Info size={13} className="text-indigo-500" />
-                    <span>About & Developer Credits</span>
+                    <span>About Provident Suite</span>
                   </button>
                 </div>
                 <div className="border-t border-slate-100 pt-1">
@@ -728,19 +728,17 @@ export default function TitleBar({ onOpenAbout }) {
 
           {activeMenu === 'help' && (
             <div className="absolute left-0 mt-0.5 w-72 bg-white rounded-md shadow-2xl border border-slate-200 py-1 text-slate-800 z-50 text-xs">
-              <a
-                href="https://github.com/ademlitrik"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setActiveMenu(null)}
-                className="w-full text-left px-3 py-1.5 hover:bg-indigo-50 flex items-center justify-between text-indigo-700 font-semibold"
+              <button
+                onClick={() => { navigate('/help'); setActiveMenu(null) }}
+                className="w-full text-left px-3 py-1.5 hover:bg-indigo-50 flex items-center justify-between text-indigo-700 font-bold"
               >
                 <div className="flex items-center gap-2">
-                  <Code2 size={13} className="text-indigo-600" />
-                  <span>Developer GitHub: ademlitrik</span>
+                  <HelpCircle size={13} className="text-indigo-600" />
+                  <span>Provident Help & Tutorials</span>
                 </div>
-                <ExternalLink size={11} className="text-indigo-400" />
-              </a>
+                <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.2 rounded font-mono">NEW</span>
+              </button>
+              <div className="border-t border-slate-100 my-1" />
               <a
                 href="https://pfconsultants.co.za/"
                 target="_blank"
@@ -767,7 +765,7 @@ export default function TitleBar({ onOpenAbout }) {
                 className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center gap-2 text-indigo-700 font-bold"
               >
                 <Info size={13} className="text-indigo-600" />
-                <span>About Provident & Developer Credits...</span>
+                <span>About Provident Suite</span>
               </button>
             </div>
           )}
@@ -893,10 +891,10 @@ export default function TitleBar({ onOpenAbout }) {
         <button
           onClick={onOpenAbout}
           className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer shrink-0 ml-auto"
-          title="About Provident & Developer Credits"
+          title="About Provident Suite"
         >
           <HelpCircle size={13} className="text-indigo-600" />
-          <span>About & Credits</span>
+          <span>About</span>
         </button>
       </div>
     </div>

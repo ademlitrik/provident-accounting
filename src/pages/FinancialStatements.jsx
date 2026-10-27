@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   FileText, Download, Printer, Filter, ChevronDown,
   Building2, Calendar, FileSpreadsheet, Sparkles, RefreshCw, CheckCircle2
@@ -9,55 +9,6 @@ import { useAccountingStore, getCurrencyCode } from '@/store/accountingStore'
 import { exportFinancialStatementsPdf } from '@/utils/pdfExport'
 
 const tabs = ['Income Statement', 'Balance Sheet', 'Cash Flows', 'Notes to Statements']
-
-const BALANCE_SHEET_DATA = {
-  assets: {
-    current: [
-      { code: '1000', name: 'Cash and Cash Equivalents', amount: 284500, prior: 215000 },
-      { code: '1100', name: 'Trade and Other Receivables', amount: 156300, prior: 142000 },
-      { code: '1200', name: 'Inventories at Cost', amount: 93400, prior: 88000 },
-    ],
-    nonCurrent: [
-      { code: '1500', name: 'Property, Plant and Equipment (Gross)', amount: 620000, prior: 580000 },
-      { code: '1510', name: 'Accumulated Depreciation', amount: -184000, prior: -150000 },
-      { code: '1600', name: 'Intangible Software Assets', amount: 45000, prior: 45000 },
-    ]
-  },
-  liabilities: {
-    current: [
-      { code: '2000', name: 'Trade and Other Payables', amount: 89700, prior: 74000 },
-      { code: '2100', name: 'Short-term Borrowings (Working Capital)', amount: 50000, prior: 65000 },
-      { code: '2200', name: 'Current Tax Payable', amount: 28500, prior: 22000 },
-    ],
-    nonCurrent: [
-      { code: '2500', name: 'Long-term Bank Facilities', amount: 230000, prior: 270000 },
-      { code: '2600', name: 'Deferred Tax Liability', amount: 18000, prior: 15000 },
-    ]
-  },
-  equity: [
-    { code: '3000', name: 'Ordinary Share Capital', amount: 300000, prior: 300000 },
-    { code: '3100', name: 'Retained Earnings (Accumulated Profits)', amount: 299000, prior: 194000 },
-  ]
-}
-
-const CASH_FLOW_DATA = [
-  { section: 'Cash Flows from Operating Activities', items: [
-    { name: 'Operating Profit before Tax', amount: 278000 },
-    { name: 'Adjustments for Depreciation & Amortization', amount: 34000 },
-    { name: 'Movement in Trade Receivables', amount: -14300 },
-    { name: 'Movement in Inventories', amount: -5400 },
-    { name: 'Movement in Trade Payables', amount: 15700 },
-    { name: 'Direct Taxes Paid', amount: -22000 },
-  ]},
-  { section: 'Cash Flows from Investing Activities', items: [
-    { name: 'Purchase of Property, Plant & Equipment', amount: -40000 },
-    { name: 'Proceeds from Disposal of Fixed Assets', amount: 8500 },
-  ]},
-  { section: 'Cash Flows from Financing Activities', items: [
-    { name: 'Repayment of Long-term Debt Borrowings', amount: -40000 },
-    { name: 'Dividends Distributed to Shareholders', amount: -45000 },
-  ]},
-]
 
 function fmt(n) {
   if (n === undefined || n === null) return '—'
@@ -75,10 +26,146 @@ export default function FinancialStatements() {
   const firm = useAuthStore(s => s.firm)
   const activeClientId = useAccountingStore(s => s.activeClientId)
   const clients = useAccountingStore(s => s.clients)
+  const allAccounts = useAccountingStore(s => s.accounts)
   const addRecentDocument = useAccountingStore(s => s.addRecentDocument)
   const activeClient = clients.find(c => c.id === activeClientId) || clients[0]
 
   const currCode = getCurrencyCode(firm?.currency)
+
+  // Filter accounts for active client
+  const clientAccounts = useMemo(() => {
+    return allAccounts.filter(a => a.clientId === activeClientId)
+  }, [allAccounts, activeClientId])
+
+  // Derive dynamic Balance Sheet & Income Statement from client accounts
+  const financialData = useMemo(() => {
+    // If client has accounts loaded, compute dynamically; otherwise fallback
+    const hasAccounts = clientAccounts.length > 0
+
+    // Classification helper
+    const getGroupTotal = (type, subMatcher) => {
+      return clientAccounts
+        .filter(a => a.type === type && (!subMatcher || (a.sub && a.sub.toLowerCase().includes(subMatcher.toLowerCase()))))
+        .reduce((sum, a) => sum + Math.abs(a.balance || 0), 0)
+    }
+
+    const currentAssetAccounts = hasAccounts
+      ? clientAccounts.filter(a => a.type === 'Asset' && (a.sub?.toLowerCase().includes('current') || ['1000', '1100', '1200', '1300', '1400'].includes(String(a.code))))
+      : [
+          { code: '1000', name: 'Cash and Cash Equivalents', balance: 284500 },
+          { code: '1100', name: 'Trade and Other Receivables', balance: 156300 },
+          { code: '1200', name: 'Inventories at Cost', balance: 93400 },
+        ]
+
+    const nonCurrentAssetAccounts = hasAccounts
+      ? clientAccounts.filter(a => a.type === 'Asset' && !currentAssetAccounts.some(ca => ca.code === a.code))
+      : [
+          { code: '1500', name: 'Property, Plant and Equipment (Gross)', balance: 620000 },
+          { code: '1510', name: 'Accumulated Depreciation', balance: -184000 },
+          { code: '1600', name: 'Intangible Software Assets', balance: 45000 },
+        ]
+
+    const currentLiabAccounts = hasAccounts
+      ? clientAccounts.filter(a => a.type === 'Liability' && (a.sub?.toLowerCase().includes('current') || ['2000', '2100', '2200', '2300'].includes(String(a.code))))
+      : [
+          { code: '2000', name: 'Trade and Other Payables', balance: -89700 },
+          { code: '2100', name: 'Short-term Borrowings', balance: -50000 },
+          { code: '2200', name: 'Current Tax Payable', balance: -28500 },
+        ]
+
+    const nonCurrentLiabAccounts = hasAccounts
+      ? clientAccounts.filter(a => a.type === 'Liability' && !currentLiabAccounts.some(cl => cl.code === a.code))
+      : [
+          { code: '2500', name: 'Long-term Bank Facilities', balance: -230000 },
+          { code: '2600', name: 'Deferred Tax Liability', balance: -18000 },
+        ]
+
+    const equityAccounts = hasAccounts
+      ? clientAccounts.filter(a => a.type === 'Equity')
+      : [
+          { code: '3000', name: 'Ordinary Share Capital', balance: -300000 },
+          { code: '3100', name: 'Retained Earnings', balance: -299000 },
+        ]
+
+    // Income statement components
+    const revenueAccounts = clientAccounts.filter(a => a.type === 'Income')
+    const expenseAccounts = clientAccounts.filter(a => a.type === 'Expense')
+
+    const totalRevenue = revenueAccounts.length > 0 
+      ? revenueAccounts.reduce((sum, a) => sum + Math.abs(a.balance || 0), 0)
+      : 741500
+
+    const costOfSalesAccs = expenseAccounts.filter(a => a.code === '5000' || a.name.toLowerCase().includes('cost of sales') || a.name.toLowerCase().includes('merchandise'))
+    const costOfSales = costOfSalesAccs.length > 0
+      ? costOfSalesAccs.reduce((sum, a) => sum + Math.abs(a.balance || 0), 0)
+      : 312000
+
+    const grossProfit = totalRevenue - costOfSales
+
+    const operatingExpenseAccs = expenseAccounts.filter(a => !costOfSalesAccs.some(cs => cs.code === a.code))
+    const totalOperatingExpenses = operatingExpenseAccs.length > 0
+      ? operatingExpenseAccs.reduce((sum, a) => sum + Math.abs(a.balance || 0), 0)
+      : 199900
+
+    const ebit = grossProfit - totalOperatingExpenses
+    const taxExpense = Math.max(0, Math.round(ebit * 0.27))
+    const netProfit = ebit - taxExpense
+
+    // Asset and liability sums
+    const totalCurrAssets = currentAssetAccounts.reduce((s, a) => s + Math.abs(a.balance || 0), 0)
+    const totalNonCurrAssets = nonCurrentAssetAccounts.reduce((s, a) => s + (a.balance || 0), 0)
+    const totalAssets = totalCurrAssets + totalNonCurrAssets
+
+    const totalCurrLiab = currentLiabAccounts.reduce((s, a) => s + Math.abs(a.balance || 0), 0)
+    const totalNonCurrLiab = nonCurrentLiabAccounts.reduce((s, a) => s + Math.abs(a.balance || 0), 0)
+    const totalLiab = totalCurrLiab + totalNonCurrLiab
+
+    const totalEquity = equityAccounts.reduce((s, a) => s + Math.abs(a.balance || 0), 0)
+    const totalLiabAndEquity = totalLiab + totalEquity
+
+    return {
+      currentAssetAccounts,
+      nonCurrentAssetAccounts,
+      currentLiabAccounts,
+      nonCurrentLiabAccounts,
+      equityAccounts,
+      totalRevenue,
+      costOfSales,
+      grossProfit,
+      operatingExpenseAccs,
+      totalOperatingExpenses,
+      ebit,
+      taxExpense,
+      netProfit,
+      totalCurrAssets,
+      totalNonCurrAssets,
+      totalAssets,
+      totalCurrLiab,
+      totalNonCurrLiab,
+      totalLiab,
+      totalEquity,
+      totalLiabAndEquity
+    }
+  }, [clientAccounts])
+
+  const CASH_FLOW_DATA = useMemo(() => [
+    { section: 'Cash Flows from Operating Activities', items: [
+      { name: 'Operating Profit before Tax (EBIT)', amount: financialData.ebit },
+      { name: 'Adjustments for Depreciation & Amortization', amount: 34000 },
+      { name: 'Movement in Trade Receivables', amount: -14300 },
+      { name: 'Movement in Inventories', amount: -5400 },
+      { name: 'Movement in Trade Payables', amount: 15700 },
+      { name: 'Direct Taxes Paid', amount: -financialData.taxExpense },
+    ]},
+    { section: 'Cash Flows from Investing Activities', items: [
+      { name: 'Purchase of Property, Plant & Equipment', amount: -40000 },
+      { name: 'Proceeds from Disposal of Fixed Assets', amount: 8500 },
+    ]},
+    { section: 'Cash Flows from Financing Activities', items: [
+      { name: 'Repayment of Long-term Debt Borrowings', amount: -40000 },
+      { name: 'Dividends Distributed to Shareholders', amount: -45000 },
+    ]},
+  ], [financialData])
 
   // Direct PDF Export Handler using pdf-lib
   const handleExportPdf = async () => {
@@ -104,48 +191,33 @@ export default function FinancialStatements() {
     setIsExportingPdf(false)
   }
 
-  // Calculations for Balance Sheet
-  const totalCurrAssets = BALANCE_SHEET_DATA.assets.current.reduce((s, a) => s + a.amount, 0)
-  const totalNonCurrAssets = BALANCE_SHEET_DATA.assets.nonCurrent.reduce((s, a) => s + a.amount, 0)
-  const totalAssets = totalCurrAssets + totalNonCurrAssets
-
-  const totalCurrLiab = BALANCE_SHEET_DATA.liabilities.current.reduce((s, a) => s + a.amount, 0)
-  const totalNonCurrLiab = BALANCE_SHEET_DATA.liabilities.nonCurrent.reduce((s, a) => s + a.amount, 0)
-  const totalLiab = totalCurrLiab + totalNonCurrLiab
-
-  const totalEquity = BALANCE_SHEET_DATA.equity.reduce((s, a) => s + a.amount, 0)
-  const totalLiabAndEquity = totalLiab + totalEquity
-
   const handleExportExcel = () => {
     let rows = []
     if (activeTab === 0) {
       rows = [
         ['Statement of Comprehensive Income', activeClient?.name || 'Acme Corporation', `Reporting Currency: ${currCode}`],
         ['Accounting Item Description', 'Note', `2024 (${currCode})`, `2023 (${currCode})`],
-        ['Revenue from Contracts with Customers', '3', '741500', '659000'],
-        ['Cost of Sales & Direct Merchandise Costs', '4', '-312000', '-285000'],
-        ['Gross Profit', '', '429500', '374000'],
-        ['Salaries, Wages & Employee Benefits', '5', '-144000', '-130000'],
-        ['Premises Lease Rentals', '', '-33000', '-30000'],
-        ['Administrative & General Office Expenses', '', '-8500', '-7800'],
-        ['Depreciation and Amortization', '6', '-14400', '-12000'],
-        ['Operating Profit (EBIT)', '', '229600', '194200'],
-        ['Income Tax Expense (27%)', '7', '-61992', '-52434'],
-        ['Net Profit for the Year After Tax', '', '167608', '141766']
+        ['Revenue from Contracts with Customers', '3', String(financialData.totalRevenue), '659000'],
+        ['Cost of Sales & Direct Merchandise Costs', '4', String(-financialData.costOfSales), '-285000'],
+        ['Gross Profit', '', String(financialData.grossProfit), '374000'],
+        ...financialData.operatingExpenseAccs.map(e => [e.name, '', String(-Math.abs(e.balance || 0)), '—']),
+        ['Operating Profit (EBIT)', '', String(financialData.ebit), '194200'],
+        ['Income Tax Expense (27%)', '7', String(-financialData.taxExpense), '-52434'],
+        ['Net Profit for the Year After Tax', '', String(financialData.netProfit), '141766']
       ]
     } else if (activeTab === 1) {
       rows = [
         ['Statement of Financial Position (Balance Sheet)', activeClient?.name || 'Acme Corporation', `Reporting Currency: ${currCode}`],
         ['Classification', 'Code', `2024 (${currCode})`, `2023 (${currCode})`],
-        ...BALANCE_SHEET_DATA.assets.nonCurrent.map(i => [i.name, i.code, i.amount, i.prior]),
-        ['Total Non-Current Assets', '', totalNonCurrAssets, 475000],
-        ...BALANCE_SHEET_DATA.assets.current.map(i => [i.name, i.code, i.amount, i.prior]),
-        ['Total Current Assets', '', totalCurrAssets, 445000],
-        ['TOTAL ASSETS', '', totalAssets, 920000],
-        ...BALANCE_SHEET_DATA.equity.map(i => [i.name, i.code, i.amount, i.prior]),
-        ...BALANCE_SHEET_DATA.liabilities.nonCurrent.map(i => [i.name, i.code, i.amount, i.prior]),
-        ...BALANCE_SHEET_DATA.liabilities.current.map(i => [i.name, i.code, i.amount, i.prior]),
-        ['TOTAL EQUITY AND LIABILITIES', '', totalLiabAndEquity, 920000]
+        ...financialData.nonCurrentAssetAccounts.map(i => [i.name, i.code, i.balance, '—']),
+        ['Total Non-Current Assets', '', financialData.totalNonCurrAssets, 475000],
+        ...financialData.currentAssetAccounts.map(i => [i.name, i.code, Math.abs(i.balance), '—']),
+        ['Total Current Assets', '', financialData.totalCurrAssets, 445000],
+        ['TOTAL ASSETS', '', financialData.totalAssets, 920000],
+        ...financialData.equityAccounts.map(i => [i.name, i.code, Math.abs(i.balance), '—']),
+        ...financialData.nonCurrentLiabAccounts.map(i => [i.name, i.code, Math.abs(i.balance), '—']),
+        ...financialData.currentLiabAccounts.map(i => [i.name, i.code, Math.abs(i.balance), '—']),
+        ['TOTAL EQUITY AND LIABILITIES', '', financialData.totalLiabAndEquity, 920000]
       ]
     } else {
       rows = [
@@ -293,63 +365,76 @@ export default function FinancialStatements() {
               <tr>
                 <td className="py-2.5 font-semibold text-slate-900 dark:text-slate-100">Revenue from Contracts with Customers</td>
                 <td className="py-2.5 text-center text-slate-400">3</td>
-                <td className="py-2.5 text-right font-mono font-medium text-slate-900 dark:text-slate-100">741,500</td>
+                <td className="py-2.5 text-right font-mono font-medium text-slate-900 dark:text-slate-100">{fmt(financialData.totalRevenue)}</td>
                 <td className="py-2.5 text-right font-mono text-slate-400">659,000</td>
               </tr>
               <tr>
                 <td className="py-2.5 pl-4 text-slate-600 dark:text-slate-400">Cost of Sales & Direct Merchandise Costs</td>
                 <td className="py-2.5 text-center text-slate-400">4</td>
-                <td className="py-2.5 text-right font-mono text-rose-600 dark:text-rose-400">(312,000)</td>
+                <td className="py-2.5 text-right font-mono text-rose-600 dark:text-rose-400">{fmt(-financialData.costOfSales)}</td>
                 <td className="py-2.5 text-right font-mono text-slate-400">(285,000)</td>
               </tr>
               <tr className="bg-slate-50 dark:bg-slate-800/50 font-semibold border-y border-slate-200 dark:border-slate-700">
                 <td className="py-2 text-slate-900 dark:text-slate-100">Gross Profit</td>
                 <td></td>
-                <td className="py-2 text-right font-mono text-emerald-600 dark:text-emerald-400">429,500</td>
+                <td className="py-2 text-right font-mono text-emerald-600 dark:text-emerald-400">{fmt(financialData.grossProfit)}</td>
                 <td className="py-2 text-right font-mono text-slate-500">374,000</td>
               </tr>
 
-              <tr>
-                <td className="py-2.5 pl-4 text-slate-600 dark:text-slate-400">Salaries, Wages & Employee Benefits</td>
-                <td className="py-2.5 text-center text-slate-400">5</td>
-                <td className="py-2.5 text-right font-mono text-rose-600 dark:text-rose-400">(144,000)</td>
-                <td className="py-2.5 text-right font-mono text-slate-400">(130,000)</td>
-              </tr>
-              <tr>
-                <td className="py-2.5 pl-4 text-slate-600 dark:text-slate-400">Premises Lease Rentals</td>
-                <td className="py-2.5 text-center text-slate-400"></td>
-                <td className="py-2.5 text-right font-mono text-rose-600 dark:text-rose-400">(33,000)</td>
-                <td className="py-2.5 text-right font-mono text-slate-400">(30,000)</td>
-              </tr>
-              <tr>
-                <td className="py-2.5 pl-4 text-slate-600 dark:text-slate-400">Administrative & General Office Expenses</td>
-                <td className="py-2.5 text-center text-slate-400"></td>
-                <td className="py-2.5 text-right font-mono text-rose-600 dark:text-rose-400">(8,500)</td>
-                <td className="py-2.5 text-right font-mono text-slate-400">(7,800)</td>
-              </tr>
-              <tr>
-                <td className="py-2.5 pl-4 text-slate-600 dark:text-slate-400">Depreciation and Amortization</td>
-                <td className="py-2.5 text-center text-slate-400">6</td>
-                <td className="py-2.5 text-right font-mono text-rose-600 dark:text-rose-400">(14,400)</td>
-                <td className="py-2.5 text-right font-mono text-slate-400">(12,000)</td>
-              </tr>
+              {financialData.operatingExpenseAccs.length > 0 ? (
+                financialData.operatingExpenseAccs.map(e => (
+                  <tr key={e.code}>
+                    <td className="py-2.5 pl-4 text-slate-600 dark:text-slate-400">{e.name}</td>
+                    <td className="py-2.5 text-center text-slate-400">{e.code}</td>
+                    <td className="py-2.5 text-right font-mono text-rose-600 dark:text-rose-400">{fmt(-Math.abs(e.balance || 0))}</td>
+                    <td className="py-2.5 text-right font-mono text-slate-400">—</td>
+                  </tr>
+                ))
+              ) : (
+                <>
+                  <tr>
+                    <td className="py-2.5 pl-4 text-slate-600 dark:text-slate-400">Salaries, Wages & Employee Benefits</td>
+                    <td className="py-2.5 text-center text-slate-400">5</td>
+                    <td className="py-2.5 text-right font-mono text-rose-600 dark:text-rose-400">(144,000)</td>
+                    <td className="py-2.5 text-right font-mono text-slate-400">(130,000)</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 pl-4 text-slate-600 dark:text-slate-400">Premises Lease Rentals</td>
+                    <td className="py-2.5 text-center text-slate-400"></td>
+                    <td className="py-2.5 text-right font-mono text-rose-600 dark:text-rose-400">(33,000)</td>
+                    <td className="py-2.5 text-right font-mono text-slate-400">(30,000)</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 pl-4 text-slate-600 dark:text-slate-400">Administrative & General Office Expenses</td>
+                    <td className="py-2.5 text-center text-slate-400"></td>
+                    <td className="py-2.5 text-right font-mono text-rose-600 dark:text-rose-400">(8,500)</td>
+                    <td className="py-2.5 text-right font-mono text-slate-400">(7,800)</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 pl-4 text-slate-600 dark:text-slate-400">Depreciation and Amortization</td>
+                    <td className="py-2.5 text-center text-slate-400">6</td>
+                    <td className="py-2.5 text-right font-mono text-rose-600 dark:text-rose-400">(14,400)</td>
+                    <td className="py-2.5 text-right font-mono text-slate-400">(12,000)</td>
+                  </tr>
+                </>
+              )}
 
               <tr className="bg-slate-50 dark:bg-slate-800/50 font-semibold border-t border-slate-200 dark:border-slate-700">
                 <td className="py-2 text-slate-900 dark:text-slate-100">Operating Profit (EBIT)</td>
                 <td></td>
-                <td className="py-2 text-right font-mono text-slate-900 dark:text-slate-100">229,600</td>
+                <td className="py-2 text-right font-mono text-slate-900 dark:text-slate-100">{fmt(financialData.ebit)}</td>
                 <td className="py-2 text-right font-mono text-slate-500">194,200</td>
               </tr>
               <tr>
                 <td className="py-2 pl-4 text-slate-600 dark:text-slate-400">Income Tax Expense (27%)</td>
                 <td className="py-2 text-center text-slate-400">7</td>
-                <td className="py-2 text-right font-mono text-rose-600 dark:text-rose-400">(61,992)</td>
+                <td className="py-2 text-right font-mono text-rose-600 dark:text-rose-400">{fmt(-financialData.taxExpense)}</td>
                 <td className="py-2 text-right font-mono text-slate-400">(52,434)</td>
               </tr>
               <tr className="border-t-2 border-b-4 border-slate-900 dark:border-slate-100 font-bold bg-slate-100/60 dark:bg-slate-800">
                 <td className="py-3 text-sm text-slate-900 dark:text-slate-100">Net Profit for the Year After Tax</td>
                 <td></td>
-                <td className="py-3 text-right font-mono text-sm text-emerald-600 dark:text-emerald-400">167,608</td>
+                <td className="py-3 text-right font-mono text-sm text-emerald-600 dark:text-emerald-400">{fmt(financialData.netProfit)}</td>
                 <td className="py-3 text-right font-mono text-sm text-slate-500">141,766</td>
               </tr>
             </tbody>
@@ -388,18 +473,18 @@ export default function FinancialStatements() {
                   Non-Current Assets
                 </td>
               </tr>
-              {BALANCE_SHEET_DATA.assets.nonCurrent.map(item => (
+              {financialData.nonCurrentAssetAccounts.map(item => (
                 <tr key={item.code}>
                   <td className="py-2 pl-4 text-slate-700 dark:text-slate-300">{item.name}</td>
                   <td className="py-2 text-center text-slate-400">{item.code}</td>
-                  <td className="py-2 text-right font-mono">{fmt(item.amount)}</td>
-                  <td className="py-2 text-right font-mono text-slate-400">{fmt(item.prior)}</td>
+                  <td className="py-2 text-right font-mono">{fmt(item.balance)}</td>
+                  <td className="py-2 text-right font-mono text-slate-400">—</td>
                 </tr>
               ))}
               <tr className="font-semibold bg-slate-50/50 dark:bg-slate-800/30">
                 <td className="py-2 pl-4 text-slate-800 dark:text-slate-200">Total Non-Current Assets</td>
                 <td></td>
-                <td className="py-2 text-right font-mono">{fmt(totalNonCurrAssets)}</td>
+                <td className="py-2 text-right font-mono">{fmt(financialData.totalNonCurrAssets)}</td>
                 <td className="py-2 text-right font-mono text-slate-400">475,000</td>
               </tr>
 
@@ -408,25 +493,25 @@ export default function FinancialStatements() {
                   Current Assets
                 </td>
               </tr>
-              {BALANCE_SHEET_DATA.assets.current.map(item => (
+              {financialData.currentAssetAccounts.map(item => (
                 <tr key={item.code}>
                   <td className="py-2 pl-4 text-slate-700 dark:text-slate-300">{item.name}</td>
                   <td className="py-2 text-center text-slate-400">{item.code}</td>
-                  <td className="py-2 text-right font-mono">{fmt(item.amount)}</td>
-                  <td className="py-2 text-right font-mono text-slate-400">{fmt(item.prior)}</td>
+                  <td className="py-2 text-right font-mono">{fmt(Math.abs(item.balance || 0))}</td>
+                  <td className="py-2 text-right font-mono text-slate-400">—</td>
                 </tr>
               ))}
               <tr className="font-semibold bg-slate-50/50 dark:bg-slate-800/30">
                 <td className="py-2 pl-4 text-slate-800 dark:text-slate-200">Total Current Assets</td>
                 <td></td>
-                <td className="py-2 text-right font-mono">{fmt(totalCurrAssets)}</td>
+                <td className="py-2 text-right font-mono">{fmt(financialData.totalCurrAssets)}</td>
                 <td className="py-2 text-right font-mono text-slate-400">445,000</td>
               </tr>
 
               <tr className="border-y-2 border-slate-900 dark:border-slate-100 font-bold bg-slate-100 dark:bg-slate-800">
                 <td className="py-2.5 text-sm text-slate-900 dark:text-slate-100">TOTAL ASSETS</td>
                 <td></td>
-                <td className="py-2.5 text-right font-mono text-sm text-indigo-600 dark:text-indigo-400">{fmt(totalAssets)}</td>
+                <td className="py-2.5 text-right font-mono text-sm text-indigo-600 dark:text-indigo-400">{fmt(financialData.totalAssets)}</td>
                 <td className="py-2.5 text-right font-mono text-sm text-slate-400">920,000</td>
               </tr>
 
@@ -436,12 +521,12 @@ export default function FinancialStatements() {
                   Equity and Capital Reserves
                 </td>
               </tr>
-              {BALANCE_SHEET_DATA.equity.map(item => (
+              {financialData.equityAccounts.map(item => (
                 <tr key={item.code}>
                   <td className="py-2 pl-4 text-slate-700 dark:text-slate-300">{item.name}</td>
                   <td className="py-2 text-center text-slate-400">{item.code}</td>
-                  <td className="py-2 text-right font-mono">{fmt(item.amount)}</td>
-                  <td className="py-2 text-right font-mono text-slate-400">{fmt(item.prior)}</td>
+                  <td className="py-2 text-right font-mono">{fmt(Math.abs(item.balance || 0))}</td>
+                  <td className="py-2 text-right font-mono text-slate-400">—</td>
                 </tr>
               ))}
 
@@ -450,12 +535,12 @@ export default function FinancialStatements() {
                   Non-Current Liabilities
                 </td>
               </tr>
-              {BALANCE_SHEET_DATA.liabilities.nonCurrent.map(item => (
+              {financialData.nonCurrentLiabAccounts.map(item => (
                 <tr key={item.code}>
                   <td className="py-2 pl-4 text-slate-700 dark:text-slate-300">{item.name}</td>
                   <td className="py-2 text-center text-slate-400">{item.code}</td>
-                  <td className="py-2 text-right font-mono">{fmt(item.amount)}</td>
-                  <td className="py-2 text-right font-mono text-slate-400">{fmt(item.prior)}</td>
+                  <td className="py-2 text-right font-mono">{fmt(Math.abs(item.balance || 0))}</td>
+                  <td className="py-2 text-right font-mono text-slate-400">—</td>
                 </tr>
               ))}
 
@@ -464,14 +549,21 @@ export default function FinancialStatements() {
                   Current Liabilities
                 </td>
               </tr>
-              {BALANCE_SHEET_DATA.liabilities.current.map(item => (
+              {financialData.currentLiabAccounts.map(item => (
                 <tr key={item.code}>
                   <td className="py-2 pl-4 text-slate-700 dark:text-slate-300">{item.name}</td>
                   <td className="py-2 text-center text-slate-400">{item.code}</td>
-                  <td className="py-2 text-right font-mono">{fmt(item.amount)}</td>
-                  <td className="py-2 text-right font-mono text-slate-400">{fmt(item.prior)}</td>
+                  <td className="py-2 text-right font-mono">{fmt(Math.abs(item.balance || 0))}</td>
+                  <td className="py-2 text-right font-mono text-slate-400">—</td>
                 </tr>
               ))}
+
+              <tr className="font-semibold bg-slate-50/50 dark:bg-slate-800/30">
+                <td className="py-2 pl-4 text-slate-800 dark:text-slate-200">Total Liabilities & Equity</td>
+                <td></td>
+                <td className="py-2 text-right font-mono">{fmt(financialData.totalLiabAndEquity)}</td>
+                <td className="py-2 text-right font-mono text-slate-400">920,000</td>
+              </tr>
 
               <tr className="border-t-2 border-b-4 border-slate-900 dark:border-slate-100 font-bold bg-slate-100 dark:bg-slate-800">
                 <td className="py-2.5 text-sm text-slate-900 dark:text-slate-100">TOTAL EQUITY AND LIABILITIES</td>

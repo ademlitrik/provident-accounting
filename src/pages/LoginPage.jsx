@@ -87,10 +87,8 @@ export default function LoginPage() {
         {/* Left Footer */}
         <div className="relative z-10 text-[11px] text-slate-500 flex items-center justify-between border-t border-slate-800/80 pt-4">
           <span>SOC 2 Type II · ISO 27001 Cryptographic Kernel</span>
-          <span className="flex items-center gap-1.5 text-slate-400">
-            <span>Developed by</span>
-            <img src={afrovisionLogo} alt="Afro Vision Media" className="h-3 w-auto object-contain inline" />
-            <span className="text-slate-300 font-semibold">Afro Vision Media</span>
+          <span className="text-slate-400">
+            Provident Financial Consultants
           </span>
         </div>
       </div>
@@ -183,43 +181,9 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Quick Demo Credentials Assistant */}
-          <div className="p-3.5 bg-slate-100/70 border border-slate-200 rounded-md text-xs space-y-1.5">
-            <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide block">
-              Default Administrator Account
-            </span>
-            <div className="flex items-center justify-between text-slate-600 font-mono text-[11px]">
-              <span>info@pfconsultants.co.za</span>
-              <span className="font-bold text-slate-800">admin@123</span>
-            </div>
-            <p className="text-[10px] text-slate-400">
-              One-click prefilled. Click "Open Audit Workspace" to test immediately.
-            </p>
-          </div>
-
-          {/* Software Developer Accreditation */}
-          <div className="pt-2 text-center text-[11px] text-slate-400 flex flex-col items-center justify-center gap-1 border-t border-slate-100">
-            <div className="flex items-center gap-1.5">
-              <span>Developed by</span>
-              <button
-                type="button"
-                onClick={() => setShowAbout(true)}
-                className="inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer group"
-                title="Click to view full developer accreditation & credits"
-              >
-                <img src={afrovisionLogo} alt="Afro Vision Media" className="h-3.5 w-auto object-contain inline" />
-                <span>Afro Vision Media</span>
-              </button>
-              <span>for Provident Financial Consultants</span>
-            </div>
-            <a
-              href="https://github.com/ademlitrik"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[10px] text-indigo-600 hover:underline font-mono"
-            >
-              Developer GitHub: ademlitrik (Tanyaradzwa Bvute)
-            </a>
+          {/* Legal Footnote */}
+          <div className="pt-2 text-center text-[11px] text-slate-400 border-t border-slate-100">
+            <span>Provident Accounting & Audit Suite © 2026</span>
           </div>
         </div>
       </div>

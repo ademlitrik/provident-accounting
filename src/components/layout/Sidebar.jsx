@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, BookOpen, Scale, FileText,
   ClipboardList, Bot, Settings, ChevronLeft, ChevronRight,
   LogOut, Landmark, List, Calculator, FolderGit2, ShieldCheck,
-  Database, Key, FileCode, FileSpreadsheet, Clock, UserCheck, Info
+  Database, Key, FileCode, FileSpreadsheet, Clock, UserCheck, Info, HelpCircle
 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
@@ -16,8 +16,7 @@ const sections = [
     items: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
       { to: '/clients', icon: Users, label: 'Entities & Clients' },
-      { to: '/practice', icon: Clock, label: 'Practice Timesheets & WIP' },
-      { to: '/users', icon: UserCheck, label: 'User Management', badge: 'ADMIN' },
+      { to: '/help', icon: HelpCircle, label: 'Help & Knowledge Base', badge: 'GUIDE' },
     ]
   },
   {
@@ -139,12 +138,12 @@ export default function Sidebar({ onOpenAbout }) {
         <button
           onClick={onOpenAbout}
           className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 transition-colors text-left cursor-pointer group"
-          title="About Provident & Developer Credits"
+          title="About Provident Suite"
         >
-          <img src={afrovisionLogo} alt="Afro Vision Media" className="w-4 h-4 object-contain shrink-0" />
+          <Info size={16} className="shrink-0 text-slate-500" />
           {!collapsed && (
             <div className="truncate flex-1">
-              <span className="block truncate font-medium">About & Credits</span>
+              <span className="block truncate font-medium">About</span>
             </div>
           )}
         </button>

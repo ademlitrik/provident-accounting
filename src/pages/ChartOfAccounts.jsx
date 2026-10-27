@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Search, Filter, Download, X } from 'lucide-react'
-import { useAccountingStore } from '@/store/accountingStore'
+import { useAccountingStore, formatCurrency, getCurrencyCode } from '@/store/accountingStore'
+import { useAuthStore } from '@/store/authStore'
 
 const typeBadge = {
   Asset: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -10,12 +11,9 @@ const typeBadge = {
   Expense: 'bg-rose-50 text-rose-700 border-rose-200',
 }
 
-function fmt(n) {
-  const abs = Math.abs(n).toLocaleString()
-  return n < 0 ? `(${abs})` : abs
-}
-
 export default function ChartOfAccounts() {
+  const firm = useAuthStore(s => s.firm)
+  const currCode = getCurrencyCode(firm?.currency)
   const accounts = useAccountingStore(s => s.accounts)
   const addAccount = useAccountingStore(s => s.addAccount)
 
@@ -32,20 +30,25 @@ export default function ChartOfAccounts() {
 
   const types = ['All', 'Asset', 'Liability', 'Equity', 'Income', 'Expense']
 
-  const filtered = accounts.filter(a => {
+  const activeClientId = useAccountingStore(s => s.activeClientId)
+  const clients = useAccountingStore(s => s.clients)
+  const activeClient = clients.find(c => c.id === activeClientId) || clients[0]
+  const filteredAccounts = accounts.filter(a => a.clientId === activeClientId)
+  const filtered = filteredAccounts.filter(a => {
     if (activeFilter !== 'All' && a.type !== activeFilter) return false
     return a.name.toLowerCase().includes(search.toLowerCase()) || a.code.includes(search)
   })
 
   const handleExport = () => {
     const csvContent = "data:text/csv;charset=utf-8," 
+      + `Client Entity:,"${activeClient?.name || 'Provident'}"\n\n`
       + "Code,Account Name,Classification,Sub-Classification,Balance\n"
-      + accounts.map(a => `"${a.code}","${a.name}","${a.type}","${a.sub}",${a.balance}`).join("\n")
+      + filteredAccounts.map(a => `"${a.code}","${a.name}","${a.type}","${a.sub}",${a.balance}`).join("\n")
     
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement("a")
     link.setAttribute("href", encodedUri)
-    link.setAttribute("download", "Provident_Chart_Of_Accounts.csv")
+    link.setAttribute("download", `${(activeClient?.name || 'Provident').replace(/[^a-zA-Z0-9]/g, '_')}_Chart_Of_Accounts.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -77,7 +80,7 @@ export default function ChartOfAccounts() {
             Chart of Accounts
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            {accounts.length} master accounts configured for Acme Corporation (Pty) Ltd
+            {filteredAccounts.length} accounts configured for <strong>{activeClient?.name}</strong>
           </p>
         </div>
 
@@ -138,7 +141,7 @@ export default function ChartOfAccounts() {
               <th className="text-left px-5 py-3">Account Title</th>
               <th className="text-left px-5 py-3 w-36">Classification</th>
               <th className="text-left px-5 py-3 w-48">Sub-Classification</th>
-              <th className="text-right px-5 py-3 w-36">Current Balance ($)</th>
+              <th className="text-right px-5 py-3 w-36">Current Balance ({currCode})</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -155,7 +158,7 @@ export default function ChartOfAccounts() {
                 <td className={`px-5 py-3 text-right font-mono font-semibold ${
                   a.balance < 0 ? 'text-slate-800' : 'text-slate-900'
                 }`}>
-                  {fmt(a.balance)}
+                  {formatCurrency(a.balance, firm?.currency)}
                 </td>
               </tr>
             ))}
@@ -228,7 +231,7 @@ export default function ChartOfAccounts() {
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">Opening Balance ($)</label>
+                <label className="font-semibold text-slate-700 block mb-1">Opening Balance ({currCode})</label>
                 <input
                   type="number"
                   placeholder="0.00"

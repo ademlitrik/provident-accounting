@@ -1,30 +1,27 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { Upload, CheckCircle2, XCircle, Link2, Download, Landmark, ArrowRight, Printer, Sparkles } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useAccountingStore, formatCurrency, getCurrencyCode } from '@/store/accountingStore'
-
-const INITIAL_BANK_ITEMS = [
-  { id: 1, date: '2024-10-28', desc: 'Digital Marketing Agency Wire', amount: -12400, ref: 'EFT-9912', matched: true, matchRef: 'JE-1007' },
-  { id: 2, date: '2024-10-25', desc: 'Equipment Depreciation Amortization', amount: -1200, ref: 'SYS-AUTO', matched: true, matchRef: 'JE-1006' },
-  { id: 3, date: '2024-10-20', desc: 'Office Depot - Stationary Invoices', amount: -840, ref: 'EFT-9910', matched: true, matchRef: 'JE-1005' },
-  { id: 4, date: '2024-10-15', desc: 'Premises Lease Rental - Suite 400', amount: -5500, ref: 'EFT-9909', matched: true, matchRef: 'JE-1004' },
-  { id: 5, date: '2024-10-10', desc: 'Staff Payroll Disbursement - October', amount: -48000, ref: 'EFT-9908', matched: true, matchRef: 'JE-1003' },
-  { id: 6, date: '2024-10-08', desc: 'Client Direct Settlement - Beta Ltd', amount: 8750, ref: 'DEP-2234', matched: false, matchRef: null },
-  { id: 7, date: '2024-10-05', desc: 'Customer Invoice Receipt - Acme Corp', amount: 91000, ref: 'DEP-2233', matched: false, matchRef: null },
-  { id: 8, date: '2024-10-02', desc: 'Commercial Banking Charges & Fees', amount: -125, ref: 'FEE-OCT', matched: false, matchRef: null },
-  { id: 9, date: '2024-10-01', desc: 'Monthly Deposit Interest Accrued', amount: 340, ref: 'INT-OCT', matched: false, matchRef: null },
-]
 
 export default function BankRecon() {
   const firm = useAuthStore(s => s.firm)
   const activeClientId = useAccountingStore(s => s.activeClientId)
   const clients = useAccountingStore(s => s.clients)
+  const allBankItems = useAccountingStore(s => s.bankItems)
   const addJournalEntry = useAccountingStore(s => s.addJournalEntry)
+  const addBankItem = useAccountingStore(s => s.addBankItem)
+  const matchBankItem = useAccountingStore(s => s.matchBankItem)
+  const addAuditEntry = useAccountingStore(s => s.addAuditEntry)
   const activeClient = clients.find(c => c.id === activeClientId) || clients[0]
 
   const currCode = getCurrencyCode(firm?.currency)
-  const [items, setItems] = useState(INITIAL_BANK_ITEMS)
   const fileInputRef = useRef(null)
+
+  // Filter bank items for active client
+  const items = useMemo(() =>
+    allBankItems.filter(i => i.clientId === activeClientId),
+    [allBankItems, activeClientId]
+  )
 
   const matched = items.filter(i => i.matched)
   const unmatched = items.filter(i => !i.matched)
@@ -33,13 +30,21 @@ export default function BankRecon() {
 
   const handleMatch = (item) => {
     const nextJeId = `JE-10${items.length + 1}`
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, matched: true, matchRef: nextJeId } : i))
+    // Match in the store
+    matchBankItem(item.id, nextJeId)
+    // Create a clearing journal entry
     addJournalEntry({
       date: item.date,
       description: `Bank Clearing: ${item.desc}`,
-      debitAccount: item.amount > 0 ? '1000 - Cash & Equivalents' : '2000 - Trade Payables',
-      creditAccount: item.amount > 0 ? '1100 - Trade Receivables' : '1000 - Cash & Equivalents',
+      debit: item.amount > 0 ? '1000 - Cash & Equivalents' : '2000 - Trade Payables',
+      credit: item.amount > 0 ? '1100 - Trade Receivables' : '1000 - Cash & Equivalents',
       amount: Math.abs(item.amount)
+    })
+    // Log to audit trail
+    addAuditEntry({
+      action: 'Bank Reconciliation Match',
+      detail: `Matched "${item.desc}" (${formatCurrency(item.amount, firm?.currency)}) → ${nextJeId}`,
+      module: 'Bank Reconciliation'
     })
   }
 
@@ -47,11 +52,17 @@ export default function BankRecon() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Add imported bank items to the store (persisted, client-tagged)
     const newItems = [
-      { id: Date.now() + 1, date: '2024-10-29', desc: `Imported Settlement [${file.name}]`, amount: 14200, ref: 'EFT-7719', matched: false, matchRef: null },
-      { id: Date.now() + 2, date: '2024-10-30', desc: `Telecommunication Facilities Wire`, amount: -3200, ref: 'EFT-7720', matched: false, matchRef: null },
+      { date: '2024-10-29', desc: `Imported Settlement [${file.name}]`, amount: 14200, ref: 'EFT-7719', matched: false, matchRef: null },
+      { date: '2024-10-30', desc: `Telecommunication Facilities Wire`, amount: -3200, ref: 'EFT-7720', matched: false, matchRef: null },
     ]
-    setItems(prev => [...newItems, ...prev])
+    newItems.forEach(item => addBankItem(item))
+    addAuditEntry({
+      action: 'Bank Statement Import',
+      detail: `Imported ${newItems.length} transactions from "${file.name}"`,
+      module: 'Bank Reconciliation'
+    })
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -244,6 +255,13 @@ export default function BankRecon() {
                 </td>
               </tr>
             ))}
+            {matched.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-5 py-8 text-center text-slate-400">
+                  No reconciled bank entries for {activeClient?.name}. Import a statement or match items above.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

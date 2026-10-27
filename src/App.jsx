@@ -23,6 +23,7 @@ import PracticeManagement from '@/pages/PracticeManagement'
 import AIAssistant from '@/pages/AIAssistant'
 import Settings from '@/pages/Settings'
 import UserManagement from '@/pages/UserManagement'
+import HelpCenter from '@/pages/HelpCenter'
 function ProtectedRoute({ children }) {
   const isLoggedIn = useAuthStore(s => s.isLoggedIn)
   return isLoggedIn ? children : <Navigate to="/login" replace />
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="ai" element={<AIAssistant />} />
         <Route path="settings" element={<Settings />} />
         <Route path="users" element={<UserManagement />} />
+        <Route path="help" element={<HelpCenter />} />
       </Route>
     </Routes>
   )
