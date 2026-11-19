@@ -454,32 +454,52 @@ export default function TitleBar({ onOpenAbout }) {
             )}
           </div>
 
-          {/* ── Native Window Controls (Minimize / Maximize / Close) ── */}
-          {window.provident && (
-            <div className="flex items-center gap-0 ml-2 shrink-0">
-              <button
-                onClick={() => window.provident.minimize()}
-                className="w-9 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
-                title="Minimize"
-              >
-                <Minus size={12} />
-              </button>
-              <button
-                onClick={() => window.provident.maximize()}
-                className="w-9 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
-                title={isMaximized ? 'Restore Down' : 'Maximize'}
-              >
-                {isMaximized ? <Copy size={11} /> : <Square size={11} />}
-              </button>
-              <button
-                onClick={() => window.provident.close()}
-                className="w-9 h-10 flex items-center justify-center text-slate-400 hover:bg-red-600 hover:text-white transition-colors"
-                title="Close Application"
-              >
-                <X size={13} />
-              </button>
-            </div>
-          )}
+          {/* ── Window Controls (Minimize / Maximize / Close) ── */}
+          <div className="flex items-center gap-0 ml-2 shrink-0 no-drag" style={{ WebkitAppRegion: 'no-drag' }}>
+            <button
+              onClick={() => {
+                if (window.provident?.minimize) {
+                  window.provident.minimize()
+                }
+              }}
+              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+              title="Minimize Window"
+            >
+              <Minus size={13} />
+            </button>
+            <button
+              onClick={() => {
+                if (window.provident?.maximize) {
+                  window.provident.maximize()
+                } else {
+                  if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(() => {})
+                    setIsMaximized(true)
+                  } else {
+                    document.exitFullscreen().catch(() => {})
+                    setIsMaximized(false)
+                  }
+                }
+              }}
+              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+              title={isMaximized ? 'Restore Down' : 'Maximize Window'}
+            >
+              {isMaximized ? <Copy size={12} /> : <Square size={12} />}
+            </button>
+            <button
+              onClick={() => {
+                if (window.provident?.close) {
+                  window.provident.close()
+                } else {
+                  window.close()
+                }
+              }}
+              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-red-600 hover:text-white transition-colors cursor-pointer"
+              title="Close Application"
+            >
+              <X size={14} />
+            </button>
+          </div>
         </div>
       </div>
 

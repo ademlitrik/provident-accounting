@@ -51,10 +51,10 @@ const sections = [
   {
     title: 'DOCUMENTS & PDF',
     items: [
-      { to: '/documents',   icon: FolderOpen,    label: 'Document Cabinet & OCR' },
-      { to: '/pdf-convert', icon: FileDown,      label: 'PDF Converter',            badge: 'XLS/WORD' },
-      { to: '/pdf-editor',  icon: FileEdit,      label: 'PDF Editor & Markup',      badge: 'EDITOR' },
-      { to: '/unlock-pdf',  icon: Key,           label: 'Audit PDF Studio',          badge: 'PRO' },
+      { to: '/documents',   icon: FolderOpen,      label: 'Document Cabinet & OCR' },
+      { to: '/pdf-convert', icon: FileSpreadsheet, label: 'Convert PDF (Excel, Word, PPT)', badge: 'PREVIEW' },
+      { to: '/pdf-editor',  icon: FileEdit,        label: 'PDF Editor & Markup',          badge: 'EDITOR' },
+      { to: '/unlock-pdf',  icon: Key,             label: 'Audit PDF Studio',              badge: 'PRO' },
     ]
   },
   {

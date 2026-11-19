@@ -13,6 +13,7 @@ export default function WorkingPapers() {
   const workingPapers = useAccountingStore(s => s.workingPapers)
   const updateWorkingPaperStatus = useAccountingStore(s => s.updateWorkingPaperStatus)
   const addWorkingPaper = useAccountingStore(s => s.addWorkingPaper)
+  const seedClientStarterData = useAccountingStore(s => s.seedClientStarterData)
   const activeClientId = useAccountingStore(s => s.activeClientId)
   const clients = useAccountingStore(s => s.clients)
   const documents = useAccountingStore(s => s.documents)
@@ -221,8 +222,28 @@ export default function WorkingPapers() {
             ))}
             {clientPapers.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-slate-400">
-                  No lead schedules created for {activeClient?.name}. Click "Add Lead Schedule" above.
+                <td colSpan={8} className="px-5 py-12 text-center">
+                  <div className="max-w-sm mx-auto space-y-3">
+                    <FileText size={32} className="mx-auto text-slate-300" />
+                    <p className="text-xs font-semibold text-slate-700">No lead schedules created for {activeClient?.name}.</p>
+                    <p className="text-[11px] text-slate-500">Initialize standard ISA 230 working paper lead schedules or add an individual schedule.</p>
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => seedClientStarterData(activeClientId, activeClient?.name)}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold shadow-xs cursor-pointer"
+                      >
+                        Initialize ISA 230 Lead Schedules
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsModalOpen(true)}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold border border-slate-200 cursor-pointer"
+                      >
+                        Add Lead Schedule
+                      </button>
+                    </div>
+                  </div>
                 </td>
               </tr>
             )}

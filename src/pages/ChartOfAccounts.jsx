@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Search, Filter, Download, X } from 'lucide-react'
+import { Plus, Search, Filter, Download, X, Scale } from 'lucide-react'
 import { useAccountingStore, formatCurrency, getCurrencyCode } from '@/store/accountingStore'
 import { useAuthStore } from '@/store/authStore'
 
@@ -16,6 +16,7 @@ export default function ChartOfAccounts() {
   const currCode = getCurrencyCode(firm?.currency)
   const accounts = useAccountingStore(s => s.accounts)
   const addAccount = useAccountingStore(s => s.addAccount)
+  const seedClientStarterData = useAccountingStore(s => s.seedClientStarterData)
 
   const [search, setSearch] = useState('')
   const [activeFilter, setFilter] = useState('All')
@@ -145,23 +146,51 @@ export default function ChartOfAccounts() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filtered.map(a => (
-              <tr key={a.code} className="hover:bg-slate-50/80 transition-colors">
-                <td className="px-5 py-3 font-mono font-bold text-indigo-600">{a.code}</td>
-                <td className="px-5 py-3 font-medium text-slate-900">{a.name}</td>
-                <td className="px-5 py-3">
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${typeBadge[a.type]}`}>
-                    {a.type}
-                  </span>
-                </td>
-                <td className="px-5 py-3 text-slate-500">{a.sub}</td>
-                <td className={`px-5 py-3 text-right font-mono font-semibold ${
-                  a.balance < 0 ? 'text-slate-800' : 'text-slate-900'
-                }`}>
-                  {formatCurrency(a.balance, firm?.currency)}
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-5 py-12 text-center">
+                  <div className="max-w-sm mx-auto space-y-3">
+                    <Scale size={32} className="mx-auto text-slate-300" />
+                    <p className="text-xs font-semibold text-slate-700">No accounts found for this entity view.</p>
+                    <p className="text-[11px] text-slate-500">Initialize standard South African Chart of Accounts (IFRS for SMEs) or create your first account code.</p>
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => seedClientStarterData(activeClientId, activeClient?.name)}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold shadow-xs cursor-pointer"
+                      >
+                        Load Standard SA Chart of Accounts
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsModalOpen(true)}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold border border-slate-200 cursor-pointer"
+                      >
+                        Add Account
+                      </button>
+                    </div>
+                  </div>
                 </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map(a => (
+                <tr key={a.code} className="hover:bg-slate-50/80 transition-colors">
+                  <td className="px-5 py-3 font-mono font-bold text-indigo-600">{a.code}</td>
+                  <td className="px-5 py-3 font-medium text-slate-900">{a.name}</td>
+                  <td className="px-5 py-3">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${typeBadge[a.type]}`}>
+                      {a.type}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-slate-500">{a.sub}</td>
+                  <td className={`px-5 py-3 text-right font-mono font-semibold ${
+                    a.balance < 0 ? 'text-slate-800' : 'text-slate-900'
+                  }`}>
+                    {formatCurrency(a.balance, firm?.currency)}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

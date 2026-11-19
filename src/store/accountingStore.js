@@ -366,6 +366,12 @@ export const useAccountingStore = create(
           newBankItems = starter.bankItems
           newPapers = starter.workingPapers
           newDocs = starter.documents
+        } else {
+          // Initialize clean standard chart of accounts with zero balances so page is never blank
+          const cleanStarter = buildStarterDataForClient(newClient.id, newClient.name, 0)
+          newAccounts = cleanStarter.accounts.map(a => ({ ...a, balance: 0, debit: 0, credit: 0 }))
+          newPapers = cleanStarter.workingPapers
+          newDocs = cleanStarter.documents
         }
 
         set((s) => ({

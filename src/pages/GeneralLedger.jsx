@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, Filter, Download, X } from 'lucide-react'
+import { Plus, Search, Filter, Download, X, BookOpen } from 'lucide-react'
 import { useAccountingStore } from '@/store/accountingStore'
 import FileActionBar from '@/components/common/FileActionBar'
 import { saveToClientFolder, CLIENT_SUBFOLDERS } from '@/utils/clientStorage'
@@ -9,6 +9,7 @@ export default function GeneralLedger() {
   const clients = useAccountingStore(s => s.clients)
   const activeClient = clients.find(c => c.id === activeClientId) ?? clients[0]
   const addJournalEntry = useAccountingStore(s => s.addJournalEntry)
+  const seedClientStarterData = useAccountingStore(s => s.seedClientStarterData)
   const journalsList = useAccountingStore(s => s.journals)
   const accountsList = useAccountingStore(s => s.accounts)
 
@@ -171,27 +172,55 @@ export default function GeneralLedger() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filtered.map(entry => (
-              <tr key={entry.id} className="hover:bg-slate-50/80 transition-colors">
-                <td className="px-5 py-3 font-mono font-bold text-indigo-600">
-                  {entry.id}
-                </td>
-                <td className="px-5 py-3 text-slate-500">{entry.date}</td>
-                <td className="px-5 py-3 font-medium text-slate-900">
-                  {entry.description}
-                </td>
-                <td className="px-5 py-3 text-slate-600">{entry.debit}</td>
-                <td className="px-5 py-3 text-slate-600">{entry.credit}</td>
-                <td className="px-5 py-3 text-right font-mono font-bold text-slate-900">
-                  ${entry.amount.toLocaleString()}
-                </td>
-                <td className="px-5 py-3 text-right">
-                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    {entry.status}
-                  </span>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-5 py-12 text-center">
+                  <div className="max-w-sm mx-auto space-y-3">
+                    <BookOpen size={32} className="mx-auto text-slate-300" />
+                    <p className="text-xs font-semibold text-slate-700">No general ledger journal entries recorded yet.</p>
+                    <p className="text-[11px] text-slate-500">Record audit adjustments, opening balances, or load standard starter transactions.</p>
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => seedClientStarterData(activeClientId, activeClient?.name)}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold shadow-xs cursor-pointer"
+                      >
+                        Load Standard Journals
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsModalOpen(true)}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold border border-slate-200 cursor-pointer"
+                      >
+                        Record Entry
+                      </button>
+                    </div>
+                  </div>
                 </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map(entry => (
+                <tr key={entry.id} className="hover:bg-slate-50/80 transition-colors">
+                  <td className="px-5 py-3 font-mono font-bold text-indigo-600">
+                    {entry.id}
+                  </td>
+                  <td className="px-5 py-3 text-slate-500">{entry.date}</td>
+                  <td className="px-5 py-3 font-medium text-slate-900">
+                    {entry.description}
+                  </td>
+                  <td className="px-5 py-3 text-slate-600">{entry.debit}</td>
+                  <td className="px-5 py-3 text-slate-600">{entry.credit}</td>
+                  <td className="px-5 py-3 text-right font-mono font-bold text-slate-900">
+                    ${entry.amount.toLocaleString()}
+                  </td>
+                  <td className="px-5 py-3 text-right">
+                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      {entry.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

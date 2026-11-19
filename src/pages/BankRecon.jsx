@@ -172,6 +172,44 @@ export default function BankRecon() {
       </div>
 
       {/* Unmatched Items Table */}
+      {/* Empty State Banner if no bank items */}
+      {items.length === 0 && (
+        <div className="bg-white border border-slate-200 rounded-lg p-10 text-center shadow-xs">
+          <div className="max-w-md mx-auto space-y-3">
+            <Landmark size={36} className="mx-auto text-indigo-400" />
+            <h3 className="text-sm font-bold text-slate-800">No Bank Statement Loaded for {activeClient?.name}</h3>
+            <p className="text-xs text-slate-500">
+              Import a PDF bank statement (via the PDF Converter), upload an OFX/CSV file, or load sample bank transactions to test automatic reconciliation.
+            </p>
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const sampleData = [
+                    { id: Date.now() + 1, clientId: activeClientId, date: '2024-10-02', desc: 'Client EFT Inward — Inv 10482', amount: 54000, ref: 'EFT-0912', matched: true, matchRef: 'JE-1001' },
+                    { id: Date.now() + 2, clientId: activeClientId, date: '2024-10-05', desc: 'Telkom Internet Fibre Monthly', amount: -1850, ref: 'DEB-4412', matched: true, matchRef: 'JE-1004' },
+                    { id: Date.now() + 3, clientId: activeClientId, date: '2024-10-12', desc: 'Direct Deposit — Advisory Fees', amount: 28500, ref: 'DEP-8831', matched: false, matchRef: null },
+                    { id: Date.now() + 4, clientId: activeClientId, date: '2024-10-18', desc: 'City of Johannesburg Rates & Water', amount: -6200, ref: 'EFT-1182', matched: false, matchRef: null },
+                    { id: Date.now() + 5, clientId: activeClientId, date: '2024-10-25', desc: 'SARS Provisional Tax Clearance', amount: -45000, ref: 'SARS-0992', matched: false, matchRef: null },
+                  ]
+                  sampleData.forEach(item => addBankItem(item))
+                }}
+                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold shadow-xs cursor-pointer"
+              >
+                Load Sample Bank Statement
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold border border-slate-200 cursor-pointer"
+              >
+                Import CSV / OFX File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {unmatched.length > 0 && (
         <div className="bg-white border border-amber-200 rounded-lg overflow-hidden shadow-xs">
           <div className="px-5 py-3 border-b border-amber-200 bg-amber-50/50 flex items-center justify-between">

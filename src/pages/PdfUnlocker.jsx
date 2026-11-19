@@ -4,7 +4,8 @@ import {
   Key, Unlock, ShieldAlert, CheckCircle2, Download, Eye, AlertCircle,
   FileCheck2, RefreshCw, Lock, Files, RotateCw, Trash2, Stamp, ShieldCheck,
   Minimize2, MoveUp, MoveDown, Plus, FileText, AlertTriangle, ArrowRight,
-  Printer, Layers, Shield, FileEdit, Check, HelpCircle, Tag, Type, MousePointer, Save, Upload
+  Printer, Layers, Shield, FileEdit, Check, HelpCircle, Tag, Type, MousePointer, Save, Upload,
+  FileSpreadsheet, Presentation
 } from 'lucide-react'
 import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib'
 import * as pdfjsLib from 'pdfjs-dist'
@@ -12,8 +13,10 @@ import * as pdfjsLib from 'pdfjs-dist'
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 import { useAccountingStore } from '@/store/accountingStore'
 import { useAuthStore } from '@/store/authStore'
+import PdfConverterWorkbench from '@/components/pdf/PdfConverterWorkbench'
 
 const TOOLS = [
+  { id: 'convert', label: 'Convert PDF (Excel, Word, PowerPoint)', icon: FileSpreadsheet, badge: 'CONVERTER' },
   { id: 'edit', label: 'PDF Editor & Annotations', icon: FileEdit, badge: 'EDITOR' },
   { id: 'unlock', label: 'Password Stripper', icon: Unlock, badge: 'AUTO-STRIP' },
   { id: 'merge', label: 'Combine & Merge', icon: Files, badge: 'MULTI-PDF' },
@@ -45,7 +48,12 @@ export default function PdfUnlocker({ defaultTool }) {
   const [searchParams] = useSearchParams()
   const tabParam = searchParams.get('tab') || defaultTool
 
-  const [activeTool, setActiveTool] = useState(tabParam === 'edit' || defaultTool === 'edit' ? 'edit' : 'unlock')
+  const [activeTool, setActiveTool] = useState(
+    tabParam === 'edit' || defaultTool === 'edit' ? 'edit' :
+    tabParam === 'unlock' ? 'unlock' :
+    tabParam ? tabParam :
+    defaultTool || 'convert'
+  )
   const [statusMessage, setStatusMessage] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [downloadUrl, setDownloadUrl] = useState(null)
@@ -113,8 +121,8 @@ export default function PdfUnlocker({ defaultTool }) {
   const [allowPrinting, setAllowPrinting] = useState(true)
 
   useEffect(() => {
-    if (tabParam === 'edit') {
-      setActiveTool('edit')
+    if (tabParam) {
+      setActiveTool(tabParam)
     }
   }, [tabParam])
 
@@ -714,8 +722,16 @@ export default function PdfUnlocker({ defaultTool }) {
         })}
       </div>
 
-      {/* ── TOOL WORKBENCH CONTAINER ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* ── CONVERT TOOL: FULL-WIDTH IN-BUILD SPLIT-PANE WORKBENCH ── */}
+      {activeTool === 'convert' && (
+        <div className="w-full">
+          <PdfConverterWorkbench />
+        </div>
+      )}
+
+      {/* ── TOOL WORKBENCH CONTAINER (FOR OTHER TOOLS) ── */}
+      {activeTool !== 'convert' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Tool Configuration Panel (2 cols) */}
         <div className="lg:col-span-2 space-y-4">
 
@@ -1373,14 +1389,46 @@ export default function PdfUnlocker({ defaultTool }) {
               </div>
 
               {!organizeDoc && (
-                <div
-                  onClick={() => unlockInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-lg p-6 text-center cursor-pointer transition-colors bg-slate-50/50"
-                >
-                  <RotateCw size={24} className="mx-auto text-indigo-500 mb-1" />
-                  <span className="font-bold text-xs text-slate-800 block">
-                    Upload PDF to organize its pages
-                  </span>
+                <div className="space-y-3">
+                  <div
+                    onClick={() => unlockInputRef.current?.click()}
+                    className="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-lg p-6 text-center cursor-pointer transition-colors bg-slate-50/50"
+                  >
+                    <RotateCw size={24} className="mx-auto text-indigo-500 mb-1" />
+                    <span className="font-bold text-xs text-slate-800 block">
+                      Upload PDF to organize its pages
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Reorder pages, rotate landscape schedules, or strip duplicate pages
+                    </span>
+                  </div>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const doc = await PDFDocument.create()
+                          for (let i = 1; i <= 4; i++) {
+                            const p = doc.addPage([595.28, 841.89])
+                            p.drawText(`SAMPLE AUDIT DOSSIER — PAGE ${i}\nEntity: ${activeClient.name}\nWorking Paper Reference: WP-00${i}\nGenerated by Provident Suite`, { x: 50, y: 780, size: 12 })
+                          }
+                          const bytes = await doc.save()
+                          setOrganizeDoc(doc)
+                          setFileBytes(bytes)
+                          setPageCount(4)
+                          setPageRotations({})
+                          setDeletedPages([])
+                          setStatusMessage('✓ Loaded 4-page sample audit dossier for page organization.')
+                        } catch (e) {
+                          console.error(e)
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold border border-slate-200 cursor-pointer"
+                    >
+                      <RotateCw size={12} />
+                      <span>Load Sample 4-Page Dossier</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1662,6 +1710,7 @@ export default function PdfUnlocker({ defaultTool }) {
           </div>
         </div>
       </div>
+      )}
     </div>
   )
 }

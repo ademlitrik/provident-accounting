@@ -12,6 +12,7 @@ import { useAccountingStore } from '@/store/accountingStore'
 import { useAppStore } from '@/store/appStore'
 import { saveToClientFolder, CLIENT_SUBFOLDERS, openClientFolderInExplorer } from '@/utils/clientStorage'
 import FileActionBar from '@/components/common/FileActionBar'
+import PdfConverterWorkbench from '@/components/pdf/PdfConverterWorkbench'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
 
@@ -458,6 +459,7 @@ function downloadBlob(data, filename, mimeType) {
 }
 
 export default function PdfConverter() {
+  const [mode, setMode] = useState('workbench') // 'workbench' or 'other'
   const [activeConversion, setActiveConversion] = useState(null)
   const [files, setFiles] = useState([])
   const [status, setStatus] = useState('')
@@ -626,8 +628,41 @@ export default function PdfConverter() {
         )}
       </div>
 
-      {/* Grid of 6 conversion cards */}
-      {!activeConversion && (
+      {/* Primary Mode Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+        <button
+          type="button"
+          onClick={() => { setMode('workbench'); setActiveConversion(null) }}
+          className={`px-3 py-1.5 rounded text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            mode === 'workbench'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+          }`}
+        >
+          <FileSpreadsheet size={14} />
+          <span>PDF to Excel / Word / PowerPoint (In-Build Split Preview)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMode('other')}
+          className={`px-3 py-1.5 rounded text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            mode === 'other'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+          }`}
+        >
+          <FileDown size={14} />
+          <span>Word / Excel to PDF & Multi-PDF Merge</span>
+        </button>
+      </div>
+
+      {mode === 'workbench' && (
+        <PdfConverterWorkbench />
+      )}
+
+      {/* Grid of conversion cards for other formats */}
+      {mode === 'other' && !activeConversion && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {CONVERSIONS.map(c => {
             const Icon = c.icon
