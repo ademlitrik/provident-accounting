@@ -22,7 +22,9 @@ contextBridge.exposeInMainWorld('provident', {
     createClientFolder: (data) => ipcRenderer.invoke('storage:create-client-folder', data),
     saveClientFile: (data) => ipcRenderer.invoke('storage:save-client-file', data),
     openFolder: (path) => ipcRenderer.invoke('storage:open-folder-in-explorer', path),
+    initBaseFolder: (basePath) => ipcRenderer.invoke('storage:init-base-folder', basePath),
   },
+  openDirectory: () => ipcRenderer.invoke('dialog:open-directory'),
 
   // Database API
   db: {

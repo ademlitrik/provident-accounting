@@ -3,7 +3,8 @@ import {
   LayoutDashboard, Users, BookOpen, Scale, FileText,
   ClipboardList, Bot, Settings, ChevronLeft, ChevronRight,
   LogOut, Landmark, List, Calculator, FolderGit2, ShieldCheck,
-  Database, Key, FileCode, FileSpreadsheet, Clock, UserCheck, Info, HelpCircle
+  Database, Key, FileCode, FileSpreadsheet, Clock, UserCheck, Info, HelpCircle,
+  Workflow, FileDown, FolderOpen
 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
@@ -14,40 +15,53 @@ const sections = [
   {
     title: 'PRACTICE & GENERAL',
     items: [
-      { to: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
-      { to: '/clients', icon: Users, label: 'Entities & Clients' },
-      { to: '/help', icon: HelpCircle, label: 'Help & Knowledge Base', badge: 'GUIDE' },
+      { to: '/dashboard',  icon: LayoutDashboard, label: 'Overview Dashboard' },
+      { to: '/clients',    icon: Users,            label: 'Entities & Clients' },
+      { to: '/workflow',   icon: Workflow,         label: 'Financial Workflow',  badge: 'GUIDE' },
+      { to: '/help',       icon: HelpCircle,       label: 'Help & Knowledge Base' },
     ]
   },
   {
     title: 'ACCOUNTING CORE',
     items: [
-      { to: '/accounts', icon: List, label: 'Chart of Accounts' },
-      { to: '/ledger', icon: BookOpen, label: 'General Ledger' },
-      { to: '/trial-balance', icon: Scale, label: 'Trial Balance' },
-      { to: '/bank-recon', icon: Landmark, label: 'Bank Reconciliation' },
+      { to: '/accounts',     icon: List,          label: 'Chart of Accounts' },
+      { to: '/ledger',       icon: BookOpen,      label: 'General Ledger' },
+      { to: '/trial-balance',icon: Scale,         label: 'Trial Balance' },
+      { to: '/bank-recon',   icon: Landmark,      label: 'Bank Reconciliation' },
+    ]
+  },
+  {
+    title: 'FINANCIAL STATEMENTS',
+    items: [
+      { to: '/financials',      icon: FileText,      label: 'Financial Statements' },
+      { to: '/working-papers',  icon: ClipboardList, label: 'Audit Working Papers' },
+      { to: '/tax',             icon: Calculator,    label: 'Tax Computations' },
     ]
   },
   {
     title: 'AUDIT & STATUTORY',
     items: [
-      { to: '/acceptance', icon: UserCheck, label: 'ISA 210 Client Acceptance', badge: 'ISA 210' },
-      { to: '/sa-audit', icon: Scale, label: 'SA Audit Scoping & PIS', badge: 'SAICA' },
-      { to: '/cipc-ixbrl', icon: FileCode, label: 'CIPC iXBRL E-Filing', badge: 'CIPC' },
-      { to: '/sampling', icon: FileSpreadsheet, label: 'ISA 530 Audit Sampling', badge: 'ISA' },
-      { to: '/financials', icon: FileText, label: 'Financial Statements' },
-      { to: '/working-papers', icon: ClipboardList, label: 'Audit Working Papers' },
-      { to: '/tax', icon: Calculator, label: 'Tax Computations' },
-      { to: '/documents', icon: FolderGit2, label: 'Document & OCR Evidence' },
-      { to: '/unlock-pdf', icon: Key, label: 'Audit PDF Studio', badge: 'PRO' },
+      { to: '/acceptance',  icon: UserCheck,     label: 'ISA 210 Client Acceptance', badge: 'ISA 210' },
+      { to: '/sa-audit',    icon: Scale,         label: 'SA Audit Scoping & PIS',    badge: 'SAICA' },
+      { to: '/cipc-ixbrl',  icon: FileCode,      label: 'CIPC iXBRL E-Filing',       badge: 'CIPC' },
+      { to: '/sampling',    icon: FileSpreadsheet, label: 'ISA 530 Audit Sampling',  badge: 'ISA' },
     ]
   },
   {
-    title: 'SECURITY, MIGRATION & AI',
+    title: 'DOCUMENTS & PDF',
     items: [
-      { to: '/migrate', icon: Database, label: 'Legacy File Migration Hub', badge: 'IMPORT' },
-      { to: '/security', icon: ShieldCheck, label: 'Security & Compliance', badge: 'PRO' },
-      { to: '/ai', icon: Bot, label: 'AI Assistant', badge: 'AI' },
+      { to: '/documents',   icon: FolderOpen,    label: 'Document Cabinet & OCR' },
+      { to: '/pdf-convert', icon: FileDown,      label: 'PDF Converter',            badge: 'XLS/WORD' },
+      { to: '/unlock-pdf',  icon: Key,           label: 'Audit PDF Studio',          badge: 'PRO' },
+    ]
+  },
+  {
+    title: 'TOOLS & AI',
+    items: [
+      { to: '/migrate',   icon: Database,    label: 'Legacy File Migration',    badge: 'IMPORT' },
+      { to: '/security',  icon: ShieldCheck, label: 'Security & Compliance',    badge: 'PRO' },
+      { to: '/ai',        icon: Bot,         label: 'AI Assistant',             badge: 'AI' },
+      { to: '/practice',  icon: Clock,       label: 'Practice Management' },
     ]
   }
 ]
@@ -102,7 +116,10 @@ export default function Sidebar({ onOpenAbout }) {
                   )}
                   {!collapsed && badge && (
                     <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
-                      badge === 'PRO' ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'
+                      badge === 'PRO' ? 'bg-emerald-100 text-emerald-700' :
+                      badge === 'AI'  ? 'bg-purple-100 text-purple-700' :
+                      badge === 'GUIDE' ? 'bg-amber-100 text-amber-700' :
+                      'bg-indigo-100 text-indigo-700'
                     }`}>
                       {badge}
                     </span>

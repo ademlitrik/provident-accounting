@@ -14,6 +14,8 @@ import TaxComputation from '@/pages/TaxComputation'
 import DocumentManagement from '@/pages/DocumentManagement'
 import FileMigrationHub from '@/pages/FileMigrationHub'
 import PdfUnlocker from '@/pages/PdfUnlocker'
+import PdfConverter from '@/pages/PdfConverter'
+import FinancialWorkflow from '@/pages/FinancialWorkflow'
 import SouthAfricaAuditPlanner from '@/pages/SouthAfricaAuditPlanner'
 import CipcIbrlGenerator from '@/pages/CipcIbrlGenerator'
 import SubstantiveSampling from '@/pages/SubstantiveSampling'
@@ -52,6 +54,8 @@ export default function App() {
         <Route path="sampling" element={<SubstantiveSampling />} />
         <Route path="migrate" element={<FileMigrationHub />} />
         <Route path="unlock-pdf" element={<PdfUnlocker />} />
+        <Route path="pdf-convert" element={<PdfConverter />} />
+        <Route path="workflow" element={<FinancialWorkflow />} />
         <Route path="security" element={<SecurityComplianceCenter />} />
         <Route path="ai" element={<AIAssistant />} />
         <Route path="settings" element={<Settings />} />

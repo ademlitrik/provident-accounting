@@ -9,7 +9,8 @@ import UserManagement from '@/pages/UserManagement'
 import {
   Building2, User, Key, Globe, Palette, Shield, Save, CheckCircle,
   Eye, EyeOff, Laptop, Upload, Image as ImageIcon, Trash2, Info, Award, ExternalLink,
-  Check, AlertCircle, Clock, Users, Printer
+  Check, AlertCircle, Clock, Users, Printer, Folder, FolderOpen, FolderPlus,
+  HardDrive, RefreshCw, CheckCircle2
 } from 'lucide-react'
 import afrovisionLogo from '@/assets/afrovision_logo.png'
 
@@ -17,6 +18,7 @@ const tabs = [
   { id: 'personalization', icon: Palette,   label: 'Personalization' },
   { id: 'firm',            icon: Building2, label: 'Firm Details' },
   { id: 'profile',         icon: User,      label: 'User Profile' },
+  { id: 'storage',         icon: HardDrive, label: 'Storage & Folders' },
   { id: 'printing',        icon: Printer,   label: 'Print & Layout Setup' },
   { id: 'timesheets',      icon: Clock,     label: 'Practice Timesheets & WIP' },
   { id: 'users',           icon: Users,     label: 'User Management' },
@@ -52,6 +54,8 @@ export default function Settings() {
   const setOfficeBackground = useAppStore(s => s.setOfficeBackground)
   const language = useAppStore(s => s.language) || 'en'
   const setLanguage = useAppStore(s => s.setLanguage)
+  const cloudSync = useAppStore(s => s.cloudSync)
+  const updateCloudSync = useAppStore(s => s.updateCloudSync)
 
   const [searchParams] = useSearchParams()
   const initialTab = searchParams.get('tab') || 'personalization'
@@ -63,6 +67,57 @@ export default function Settings() {
       setActiveTab(tabFromUrl)
     }
   }, [searchParams])
+
+  // Storage state
+  const [storagePath, setStoragePath] = useState(cloudSync?.customStoragePath || '')
+  const [storageStatus, setStorageStatus] = useState('')
+  const [isCreatingFolders, setIsCreatingFolders] = useState(false)
+
+  const handleBrowseStorage = async () => {
+    if (window.provident?.openDirectory) {
+      const result = await window.provident.openDirectory()
+      if (!result.canceled && result.filePaths?.[0]) {
+        const p = result.filePaths[0]
+        setStoragePath(p)
+        updateCloudSync({ customStoragePath: p })
+        setStorageStatus('✓ Storage location updated')
+        setTimeout(() => setStorageStatus(''), 3000)
+      }
+    } else {
+      setStorageStatus('Directory picker only available in desktop app.')
+      setTimeout(() => setStorageStatus(''), 3000)
+    }
+  }
+
+  const handleSaveStoragePath = () => {
+    updateCloudSync({ customStoragePath: storagePath })
+    setSaved('storage')
+    setTimeout(() => setSaved(''), 2500)
+  }
+
+  const handleCreateAllFolders = async () => {
+    if (!storagePath && !window.provident?.storage) {
+      setStorageStatus('Please select a storage location first.')
+      return
+    }
+    setIsCreatingFolders(true)
+    setStorageStatus('Creating folder structure...')
+    try {
+      if (window.provident?.storage?.initBaseFolder) {
+        await window.provident.storage.initBaseFolder(storagePath || undefined)
+      }
+      setStorageStatus('✓ Base folder structure created successfully!')
+    } catch (err) {
+      setStorageStatus('Error: ' + err.message)
+    }
+    setIsCreatingFolders(false)
+  }
+
+  const handleOpenFolder = () => {
+    if (window.provident?.storage?.openFolder) {
+      window.provident.storage.openFolder(storagePath || undefined)
+    }
+  }
   const [firmName, setFirmName] = useState(firm.name || 'Provident Accounting & Advisory')
   const [currency, setCurrency] = useState(firm.currency || 'ZAR (R)')
   const [fyEnd, setFyEnd] = useState(firm.fiscalYearEnd || '12-31')
@@ -202,7 +257,7 @@ export default function Settings() {
         </div>
         <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
           <Laptop size={14} className="text-slate-500" />
-          <span>Provident Desktop v1.0 (Windows 11 Native Edition)</span>
+          <span>Provident Desktop v1.1.0 (Windows 11 Native Edition)</span>
         </div>
       </div>
 
@@ -251,22 +306,121 @@ export default function Settings() {
                   onChangeTheme={setTheme}
                 />
               </div>
+            </div>
+          )}
 
-              {/* Theme Live Preview */}
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
-                  Applied Visual Configuration
-                </h3>
-                <div className="grid grid-cols-2 gap-4 max-w-md">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded border border-slate-200 dark:border-slate-700">
-                    <span className="text-[11px] text-slate-500 block">Theme Scheme</span>
-                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{theme}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded border border-slate-200 dark:border-slate-700">
-                    <span className="text-[11px] text-slate-500 block">Background Accent</span>
-                    <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{officeBackground}</span>
-                  </div>
+          {/* ── STORAGE & FOLDERS TAB ── */}
+          {activeTab === 'storage' && (
+            <div className="space-y-6 max-w-2xl">
+              <div>
+                <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <HardDrive size={18} className="text-[#5B5FC7]" />
+                  Storage Location & Client Folder Management
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Choose where client documents are stored on your computer. The system will automatically organise documents into client folders.
+                </p>
+              </div>
+
+              {/* Current storage path */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-lg space-y-3">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                  Client Document Storage Location
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={storagePath}
+                    onChange={e => setStoragePath(e.target.value)}
+                    placeholder="Click Browse to select a folder..."
+                    className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-xs font-mono text-slate-700 dark:text-white focus:outline-none focus:border-[#5B5FC7]"
+                    readOnly
+                  />
+                  <button
+                    onClick={handleBrowseStorage}
+                    className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 px-3 py-1.5 rounded text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors cursor-pointer shadow-xs"
+                  >
+                    <FolderOpen size={14} />
+                    Browse
+                  </button>
                 </div>
+                <p className="text-[11px] text-slate-500">
+                  Default: Desktop\Provident Clients — Change to any folder on your computer or external drive.
+                </p>
+
+                {storageStatus && (
+                  <div className={`flex items-center gap-2 p-2.5 rounded text-xs ${
+                    storageStatus.startsWith('✓')
+                      ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                      : 'bg-amber-50 border border-amber-200 text-amber-800'
+                  }`}>
+                    {storageStatus.startsWith('✓') ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                    <span>{storageStatus}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={handleSaveStoragePath}
+                    className="inline-flex items-center gap-1.5 bg-[#5B5FC7] hover:bg-[#4A4EB5] text-white text-xs font-medium px-4 py-1.5 rounded transition-colors shadow-sm cursor-pointer"
+                  >
+                    {saved === 'storage' ? <CheckCircle size={14} /> : <Save size={14} />}
+                    <span>{saved === 'storage' ? 'Saved!' : 'Save Location'}</span>
+                  </button>
+                  <button
+                    onClick={handleOpenFolder}
+                    className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 text-xs font-medium px-4 py-1.5 rounded transition-colors cursor-pointer hover:bg-slate-50"
+                  >
+                    <FolderOpen size={14} />
+                    Open in Explorer
+                  </button>
+                </div>
+              </div>
+
+              {/* Folder Structure Preview */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Auto-Created Folder Structure
+                </h3>
+                <div className="p-4 bg-slate-900 text-green-400 rounded-lg font-mono text-[11px] leading-5">
+                  <div>📁 Provident Clients/</div>
+                  <div className="pl-4">📁 Client Name/</div>
+                  <div className="pl-8">📁 Uploaded Documents</div>
+                  <div className="pl-8">📁 PDF Documents</div>
+                  <div className="pl-8">📁 Bank Statements</div>
+                  <div className="pl-8">📁 Working Papers</div>
+                  <div className="pl-8">📁 Draft Financial Statements</div>
+                  <div className="pl-8">📁 Ledgers</div>
+                  <div className="pl-8">📁 Excel Files</div>
+                  <div className="pl-8">📁 Word Documents</div>
+                  <div className="pl-8">📁 Reports</div>
+                  <div className="pl-8">📁 Tax Schedules & CIPC</div>
+                  <div className="pl-8">📁 Audit Evidence</div>
+                </div>
+
+                <button
+                  onClick={handleCreateAllFolders}
+                  disabled={isCreatingFolders}
+                  className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-medium px-4 py-2 rounded transition-colors shadow-sm cursor-pointer"
+                >
+                  {isCreatingFolders ? <RefreshCw size={14} className="animate-spin" /> : <FolderPlus size={14} />}
+                  <span>{isCreatingFolders ? 'Creating...' : 'Create Base Folder Structure Now'}</span>
+                </button>
+              </div>
+
+              {/* Sync settings */}
+              <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
+                <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Document Sync Options</h3>
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={cloudSync?.autoCreateDesktopFolder ?? true}
+                    onChange={e => updateCloudSync({ autoCreateDesktopFolder: e.target.checked })}
+                    className="rounded text-[#5B5FC7]"
+                  />
+                  Auto-create client folder when a new client is added
+                </label>
+                <p className="text-[11px] text-slate-500">When enabled, a folder is automatically created for each new client added to the system.</p>
               </div>
             </div>
           )}

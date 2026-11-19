@@ -234,6 +234,10 @@ function createApplicationMenu() {
           click: () => mainWindow?.webContents.send('menu-navigate', '/financials')
         },
         {
+          label: 'Financial Statement Workflow (Guided 8-Step)',
+          click: () => mainWindow?.webContents.send('menu-navigate', '/workflow')
+        },
+        {
           label: 'SARS Corporate Income Tax (CIT 27%)',
           click: () => mainWindow?.webContents.send('menu-navigate', '/tax')
         },
@@ -244,6 +248,10 @@ function createApplicationMenu() {
         {
           label: 'Evidence OCR & Document Cabinet',
           click: () => mainWindow?.webContents.send('menu-navigate', '/documents')
+        },
+        {
+          label: 'PDF Converter (PDF ↔ Excel / Word / CSV)',
+          click: () => mainWindow?.webContents.send('menu-navigate', '/pdf-convert')
         },
         {
           label: 'PDF Password Security Stripper',
@@ -397,9 +405,21 @@ ipcMain.handle('storage:create-client-folder', async (_, { clientName, folderPat
     const sanitized = (clientName || 'Provident_Client').replace(/[/\\?%*:|"<>]/g, '_');
     const targetBase = folderPath || path.join(app.getPath('desktop'), 'Provident Clients');
     const clientDir = path.join(targetBase, sanitized);
-    
-    // Create standard accounting folders (Working Papers, Financials, Evidence, Tax)
-    const subDirs = ['Audit Evidence & Documents', 'Working Papers', 'Trial Balance & Journals', 'Tax Schedules & CIPC'];
+
+    // Complete client folder structure as per user specification
+    const subDirs = [
+      'Uploaded Documents',
+      'PDF Documents',
+      'Bank Statements',
+      'Working Papers',
+      'Draft Financial Statements',
+      'Ledgers',
+      'Excel Files',
+      'Word Documents',
+      'Reports',
+      'Tax Schedules & CIPC',
+      'Audit Evidence'
+    ];
     if (!fs.existsSync(clientDir)) {
       fs.mkdirSync(clientDir, { recursive: true });
     }
@@ -409,6 +429,29 @@ ipcMain.handle('storage:create-client-folder', async (_, { clientName, folderPat
     });
 
     return { success: true, path: clientDir };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// Open directory picker dialog
+ipcMain.handle('dialog:open-directory', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory', 'createDirectory'],
+    title: 'Select Client Document Storage Location',
+    buttonLabel: 'Select Folder'
+  });
+  return result;
+});
+
+// Create the full Provident Clients base folder with all structure
+ipcMain.handle('storage:init-base-folder', async (_, basePath) => {
+  try {
+    const target = basePath || path.join(app.getPath('desktop'), 'Provident Clients');
+    if (!fs.existsSync(target)) {
+      fs.mkdirSync(target, { recursive: true });
+    }
+    return { success: true, path: target };
   } catch (err) {
     return { success: false, error: err.message };
   }
