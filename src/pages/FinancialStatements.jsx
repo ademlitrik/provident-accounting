@@ -1,17 +1,21 @@
-import { useState, useMemo } from 'react'
+﻿import { useState, useMemo } from 'react'
 import {
   FileText, Download, Printer, Filter, ChevronDown,
-  Building2, Calendar, FileSpreadsheet, Sparkles, RefreshCw, CheckCircle2
+  Building2, Calendar, FileSpreadsheet, Sparkles, RefreshCw, CheckCircle2,
+  HardDrive, FolderOpen
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
 import { useAccountingStore, getCurrencyCode } from '@/store/accountingStore'
 import { exportFinancialStatementsPdf } from '@/utils/pdfExport'
+import FileActionBar from '@/components/common/FileActionBar'
+import { saveToClientFolder, CLIENT_SUBFOLDERS, openClientFolderInExplorer } from '@/utils/clientStorage'
 
 const tabs = ['Income Statement', 'Balance Sheet', 'Cash Flows', 'Notes to Statements']
 
 function fmt(n) {
-  if (n === undefined || n === null) return '—'
+  if (n === undefined || n === null) return 'â€”'
   const abs = Math.abs(n).toLocaleString()
   return n < 0 ? `(${abs})` : abs
 }
@@ -20,6 +24,7 @@ export default function FinancialStatements() {
   const [activeTab, setActiveTab] = useState(0)
   const [isExportingPdf, setIsExportingPdf] = useState(false)
   const [pdfNotification, setPdfNotification] = useState('')
+  const [saveStatus, setSaveStatus] = useState('')
   const theme = useAppStore(s => s.theme)
   const isDark = theme === 'Dark Gray' || theme === 'Black'
 
@@ -166,7 +171,6 @@ export default function FinancialStatements() {
       { name: 'Dividends Distributed to Shareholders', amount: -45000 },
     ]},
   ], [financialData])
-
   // Direct PDF Export Handler using pdf-lib
   const handleExportPdf = async () => {
     setIsExportingPdf(true)
@@ -183,15 +187,230 @@ export default function FinancialStatements() {
         size: '142 KB',
         wpRef: 'AFS-FY2024'
       })
-      setPdfNotification(`✓ Success! Downloaded ${filename}`)
-      setTimeout(() => setPdfNotification(''), 4000)
+      setPdfNotification(`? Success! Downloaded ${filename}`)
+      setSaveStatus(`Saved to: Clients/${activeClient?.name}/Draft Financial Statements`)
+      setTimeout(() => {
+        setPdfNotification('')
+        setSaveStatus('')
+      }, 4000)
     } catch (err) {
       setPdfNotification(`PDF Generation Error: ${err.message}`)
     }
     setIsExportingPdf(false)
   }
 
-  const handleExportExcel = () => {
+  // Full Multi-Sheet Microsoft Excel Workbook (.xlsx)
+  const handleExportExcelXlsx = async () => {
+    const wb = XLSX.utils.book_new()
+    const clientName = activeClient?.name || 'Provident Client'
+
+    // Sheet 1: Statement of Comprehensive Income
+    const incomeRows = [
+      ['Provident Accounting & Audit — Annual Financial Statements'],
+      ['Statement of Comprehensive Income (Profit & Loss)'],
+      [`Entity: ${clientName}`],
+      [`Reporting Currency: ${currCode}`],
+      [`Financial Period Ended: ${activeClient?.fyEnd || '31 December 2024'}`],
+      [],
+      ['Accounting Item Description', 'Note Ref', `FY2024 (${currCode})`, `FY2023 (${currCode})`],
+      ['Revenue from Contracts with Customers', 'Note 3', financialData.totalRevenue, 659000],
+      ['Cost of Sales & Direct Merchandise Costs', 'Note 4', -financialData.costOfSales, -285000],
+      ['GROSS PROFIT', '', financialData.grossProfit, 374000],
+      [],
+      ['Operating Expenses:', '', '', ''],
+      ...financialData.operatingExpenseAccs.map(e => [e.name, '', -Math.abs(e.balance || 0), '—']),
+      ['Total Operating Expenses', '', -financialData.totalOperatingExpenses, -179800],
+      [],
+      ['OPERATING PROFIT (EBIT)', '', financialData.ebit, 194200],
+      ['Income Tax Expense (Standard CIT 27%)', 'Note 7', -financialData.taxExpense, -52434],
+      ['NET PROFIT FOR THE PERIOD AFTER TAX', '', financialData.netProfit, 141766]
+    ]
+    const wsIncome = XLSX.utils.aoa_to_sheet(incomeRows)
+    wsIncome['!cols'] = [{ wch: 45 }, { wch: 12 }, { wch: 18 }, { wch: 18 }]
+    XLSX.utils.book_append_sheet(wb, wsIncome, 'Income Statement')
+
+    // Sheet 2: Statement of Financial Position (Balance Sheet)
+    const bsRows = [
+      ['Provident Accounting & Audit — Annual Financial Statements'],
+      ['Statement of Financial Position (Balance Sheet)'],
+      [`Entity: ${clientName}`],
+      [`Reporting Currency: ${currCode}`],
+      [`As at: ${activeClient?.fyEnd || '31 December 2024'}`],
+      [],
+      ['Classification / Account Description', 'Account Code', `FY2024 (${currCode})`, `FY2023 (${currCode})`],
+      ['ASSETS', '', '', ''],
+      ['Non-Current Assets:', '', '', ''],
+      ...financialData.nonCurrentAssetAccounts.map(i => [i.name, i.code, i.balance, '—']),
+      ['Total Non-Current Assets', '', financialData.totalNonCurrAssets, 475000],
+      [],
+      ['Current Assets:', '', '', ''],
+      ...financialData.currentAssetAccounts.map(i => [i.name, i.code, Math.abs(i.balance), '—']),
+      ['Total Current Assets', '', financialData.totalCurrAssets, 445000],
+      ['TOTAL ASSETS', '', financialData.totalAssets, 920000],
+      [],
+      ['EQUITY AND LIABILITIES', '', '', ''],
+      ['Capital and Reserves (Equity):', '', '', ''],
+      ...financialData.equityAccounts.map(i => [i.name, i.code, Math.abs(i.balance), '—']),
+      ['Total Equity', '', financialData.totalEquity, 599000],
+      [],
+      ['Non-Current Liabilities:', '', '', ''],
+      ...financialData.nonCurrentLiabAccounts.map(i => [i.name, i.code, Math.abs(i.balance), '—']),
+      ['Total Non-Current Liabilities', '', financialData.totalNonCurrLiab, 248000],
+      [],
+      ['Current Liabilities:', '', '', ''],
+      ...financialData.currentLiabAccounts.map(i => [i.name, i.code, Math.abs(i.balance), '—']),
+      ['Total Current Liabilities', '', financialData.totalCurrLiab, 73000],
+      ['TOTAL EQUITY AND LIABILITIES', '', financialData.totalLiabAndEquity, 920000]
+    ]
+    const wsBs = XLSX.utils.aoa_to_sheet(bsRows)
+    wsBs['!cols'] = [{ wch: 45 }, { wch: 14 }, { wch: 18 }, { wch: 18 }]
+    XLSX.utils.book_append_sheet(wb, wsBs, 'Balance Sheet')
+
+    // Sheet 3: Statement of Cash Flows
+    const cfRows = [
+      ['Provident Accounting & Audit — Annual Financial Statements'],
+      ['Statement of Cash Flows (Direct Method)'],
+      [`Entity: ${clientName}`],
+      [`Reporting Currency: ${currCode}`],
+      [],
+      ['Cash Flow Category / Item', 'Note', `FY2024 (${currCode})`],
+      ...CASH_FLOW_DATA.flatMap(s => [
+        [s.section.toUpperCase(), '', ''],
+        ...s.items.map(i => [i.name, '', i.amount]),
+        []
+      ])
+    ]
+    const wsCf = XLSX.utils.aoa_to_sheet(cfRows)
+    wsCf['!cols'] = [{ wch: 50 }, { wch: 12 }, { wch: 18 }]
+    XLSX.utils.book_append_sheet(wb, wsCf, 'Cash Flows')
+
+    // Generate binary ArrayBuffer
+    const xlsxData = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+    const filename = `${clientName.replace(/[^a-zA-Z0-9]/g, '_')}_Financial_Statements_FY2024.xlsx`
+
+    // Browser trigger
+    const blob = new Blob([xlsxData], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    // Save directly to the client's dedicated disk folder
+    await saveToClientFolder({
+      clientName,
+      subFolder: CLIENT_SUBFOLDERS.EXCEL_FILES,
+      fileName: filename,
+      fileData: xlsxData
+    })
+    setSaveStatus(`Saved to: Clients/${clientName}/Excel Files`)
+    setTimeout(() => setSaveStatus(''), 4000)
+
+    addRecentDocument({
+      name: filename,
+      type: 'Annual Financial Statements (Excel)',
+      size: `${Math.round(xlsxData.byteLength / 1024)} KB`,
+      wpRef: 'AFS-XL'
+    })
+  }
+
+  // Editable Microsoft Word Document (.doc) Export
+  const handleExportWordDoc = async () => {
+    const clientName = activeClient?.name || 'Provident Client'
+    const filename = `${clientName.replace(/[^a-zA-Z0-9]/g, '_')}_Financial_Statements_FY2024.doc`
+
+    const docContent = `<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset='utf-8'>
+<title>${clientName} - Annual Financial Statements</title>
+<style>
+  body { font-family: 'Calibri', Arial, sans-serif; font-size: 11pt; color: #0f172a; margin: 40px; }
+  h1 { font-size: 20pt; color: #1e293b; border-bottom: 2px solid #5b5fc7; padding-bottom: 6px; margin-bottom: 4px; }
+  .firm-banner { font-size: 9pt; color: #64748b; font-weight: bold; text-transform: uppercase; margin-bottom: 20px; }
+  .entity-title { font-size: 16pt; font-weight: bold; margin-bottom: 2px; }
+  .meta-info { font-size: 10pt; color: #64748b; margin-bottom: 25px; }
+  h2 { font-size: 14pt; color: #334155; margin-top: 25px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 10px; margin-bottom: 20px; }
+  th, td { border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 10pt; text-align: left; }
+  th { background-color: #f1f5f9; font-weight: bold; }
+  .right { text-align: right; }
+  .total { font-weight: bold; background-color: #f8fafc; border-top: 2px solid #0f172a; }
+  .footer { font-size: 9pt; color: #94a3b8; text-align: center; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+</style>
+</head>
+<body>
+  <div class="firm-banner">${firm?.name || 'Provident Financial Consultants'} &bull; Independent Audit & Assurance</div>
+  <div class="entity-title">${clientName}</div>
+  <div class="meta-info">Registration: ${activeClient?.regNo || '2018/489102/07'} &bull; Framework: IFRS for SMEs &bull; Year Ended: ${activeClient?.fyEnd || '31 December 2024'}</div>
+
+  <h2>1. Statement of Comprehensive Income</h2>
+  <table>
+    <tr><th>Item Description</th><th>Note</th><th class="right">FY2024 (${currCode})</th><th class="right">FY2023 (${currCode})</th></tr>
+    <tr><td>Revenue from Contracts with Customers</td><td>3</td><td class="right">${financialData.totalRevenue.toLocaleString()}</td><td class="right">659,000</td></tr>
+    <tr><td>Cost of Sales</td><td>4</td><td class="right">(${financialData.costOfSales.toLocaleString()})</td><td class="right">(285,000)</td></tr>
+    <tr class="total"><td>GROSS PROFIT</td><td></td><td class="right">${financialData.grossProfit.toLocaleString()}</td><td class="right">374,000</td></tr>
+    ${financialData.operatingExpenseAccs.map(e => `<tr><td>${e.name}</td><td></td><td class="right">(${Math.abs(e.balance || 0).toLocaleString()})</td><td class="right">—</td></tr>`).join('')}
+    <tr class="total"><td>OPERATING PROFIT (EBIT)</td><td></td><td class="right">${financialData.ebit.toLocaleString()}</td><td class="right">194,200</td></tr>
+    <tr><td>Income Tax Expense (CIT 27%)</td><td>7</td><td class="right">(${financialData.taxExpense.toLocaleString()})</td><td class="right">(52,434)</td></tr>
+    <tr class="total"><td>NET PROFIT FOR THE PERIOD</td><td></td><td class="right">${financialData.netProfit.toLocaleString()}</td><td class="right">141,766</td></tr>
+  </table>
+
+  <h2>2. Statement of Financial Position (Balance Sheet)</h2>
+  <table>
+    <tr><th>Classification / Item</th><th>Code</th><th class="right">FY2024 (${currCode})</th><th class="right">FY2023 (${currCode})</th></tr>
+    <tr><th colspan="4">NON-CURRENT ASSETS</th></tr>
+    ${financialData.nonCurrentAssetAccounts.map(i => `<tr><td>${i.name}</td><td>${i.code}</td><td class="right">${i.balance?.toLocaleString() || '—'}</td><td class="right">—</td></tr>`).join('')}
+    <tr class="total"><td>Total Non-Current Assets</td><td></td><td class="right">${financialData.totalNonCurrAssets.toLocaleString()}</td><td class="right">475,000</td></tr>
+    <tr><th colspan="4">CURRENT ASSETS</th></tr>
+    ${financialData.currentAssetAccounts.map(i => `<tr><td>${i.name}</td><td>${i.code}</td><td class="right">${Math.abs(i.balance || 0).toLocaleString()}</td><td class="right">—</td></tr>`).join('')}
+    <tr class="total"><td>Total Current Assets</td><td></td><td class="right">${financialData.totalCurrAssets.toLocaleString()}</td><td class="right">445,000</td></tr>
+    <tr class="total" style="background-color: #e2e8f0;"><td>TOTAL ASSETS</td><td></td><td class="right">${financialData.totalAssets.toLocaleString()}</td><td class="right">920,000</td></tr>
+    <tr><th colspan="4">EQUITY AND LIABILITIES</th></tr>
+    ${financialData.equityAccounts.map(i => `<tr><td>${i.name}</td><td>${i.code}</td><td class="right">${Math.abs(i.balance || 0).toLocaleString()}</td><td class="right">—</td></tr>`).join('')}
+    <tr class="total"><td>Total Equity</td><td></td><td class="right">${financialData.totalEquity.toLocaleString()}</td><td class="right">599,000</td></tr>
+    ${financialData.nonCurrentLiabAccounts.map(i => `<tr><td>${i.name}</td><td>${i.code}</td><td class="right">${Math.abs(i.balance || 0).toLocaleString()}</td><td class="right">—</td></tr>`).join('')}
+    ${financialData.currentLiabAccounts.map(i => `<tr><td>${i.name}</td><td>${i.code}</td><td class="right">${Math.abs(i.balance || 0).toLocaleString()}</td><td class="right">—</td></tr>`).join('')}
+    <tr class="total" style="background-color: #e2e8f0;"><td>TOTAL EQUITY AND LIABILITIES</td><td></td><td class="right">${financialData.totalLiabAndEquity.toLocaleString()}</td><td class="right">920,000</td></tr>
+  </table>
+
+  <div class="footer">
+    Provident Accounting & Audit &bull; Generated on ${new Date().toLocaleDateString('en-ZA')} &bull; IRBA / SAICA Standard
+  </div>
+</body>
+</html>`
+
+    const blob = new Blob([docContent], { type: 'application/msword' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    await saveToClientFolder({
+      clientName,
+      subFolder: CLIENT_SUBFOLDERS.WORD_DOCUMENTS,
+      fileName: filename,
+      fileData: docContent
+    })
+    setSaveStatus(`Saved to: Clients/${clientName}/Word Documents`)
+    setTimeout(() => setSaveStatus(''), 4000)
+
+    addRecentDocument({
+      name: filename,
+      type: 'Annual Financial Statements (Word)',
+      size: `${Math.round(docContent.length / 1024)} KB`,
+      wpRef: 'AFS-DOC'
+    })
+  }
+
+  const handleExportCsv = () => {
     let rows = []
     if (activeTab === 0) {
       rows = [
@@ -236,10 +455,28 @@ export default function FinancialStatements() {
     document.body.removeChild(link)
   }
 
+  const handleSaveStatements = async () => {
+    await handleExportExcelXlsx()
+  }
+
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-6 print:p-0 print:max-w-none print:space-y-4" style={{ userSelect: 'text' }}>
       
-      {/* ── PRINT-ONLY OFFICIAL AUDIT LETTERHEAD ── */}
+      {/* Universal File Action Ribbon */}
+      <FileActionBar
+        title="Annual Financial Statements"
+        clientName={activeClient?.name}
+        onSave={handleSaveStatements}
+        onExportExcel={handleExportExcelXlsx}
+        onExportPdf={handleExportPdf}
+        onExportWord={handleExportWordDoc}
+        onExportCsv={handleExportCsv}
+        onPrint={() => window.print()}
+        saveStatus={saveStatus}
+        subFolder={CLIENT_SUBFOLDERS.DRAFT_FINANCIAL_STATEMENTS}
+      />
+      
+      {/* â”€â”€ PRINT-ONLY OFFICIAL AUDIT LETTERHEAD â”€â”€ */}
       <div className="hidden print:block pb-4 mb-4 border-b-2 border-slate-900 text-slate-900">
         <div className="flex items-start justify-between">
           <div>
@@ -250,7 +487,7 @@ export default function FinancialStatements() {
               {activeClient?.name || 'Acme Corporation (Pty) Ltd'}
             </h1>
             <p className="text-xs text-slate-600 mt-0.5">
-              Annual Financial Statements · Registration No: {activeClient?.regNo || '2018/489102/07'}
+              Annual Financial Statements Â· Registration No: {activeClient?.regNo || '2018/489102/07'}
             </p>
           </div>
           <div className="text-right">
@@ -258,10 +495,10 @@ export default function FinancialStatements() {
               {firm?.name || 'Provident Financial Consultants'}
             </span>
             <span className="text-[10px] text-slate-600 block">
-              Independent Practice · IRBA #{firm?.irbaNumber || '904812'}
+              Independent Practice Â· IRBA #{firm?.irbaNumber || '904812'}
             </span>
             <span className="text-[10px] text-slate-500 block">
-              Framework: IFRS for SMEs · Printed: {new Date().toLocaleDateString()}
+              Framework: IFRS for SMEs Â· Printed: {new Date().toLocaleDateString()}
             </span>
           </div>
         </div>
@@ -348,7 +585,7 @@ export default function FinancialStatements() {
               Statement of Comprehensive Income
             </h3>
             <p className="text-xs text-slate-400 mt-1">
-              For the 12-Month Period Ended 31 October 2024 · Prepared under IFRS for SMEs · Stated in {currCode}
+              For the 12-Month Period Ended 31 October 2024 Â· Prepared under IFRS for SMEs Â· Stated in {currCode}
             </p>
           </div>
 
@@ -387,7 +624,7 @@ export default function FinancialStatements() {
                     <td className="py-2.5 pl-4 text-slate-600 dark:text-slate-400">{e.name}</td>
                     <td className="py-2.5 text-center text-slate-400">{e.code}</td>
                     <td className="py-2.5 text-right font-mono text-rose-600 dark:text-rose-400">{fmt(-Math.abs(e.balance || 0))}</td>
-                    <td className="py-2.5 text-right font-mono text-slate-400">—</td>
+                    <td className="py-2.5 text-right font-mono text-slate-400">â€”</td>
                   </tr>
                 ))
               ) : (
@@ -453,7 +690,7 @@ export default function FinancialStatements() {
               Statement of Financial Position (Balance Sheet)
             </h3>
             <p className="text-xs text-slate-400 mt-1">
-              As at 31 October 2024 · All amounts stated in {currCode}
+              As at 31 October 2024 Â· All amounts stated in {currCode}
             </p>
           </div>
 
@@ -478,7 +715,7 @@ export default function FinancialStatements() {
                   <td className="py-2 pl-4 text-slate-700 dark:text-slate-300">{item.name}</td>
                   <td className="py-2 text-center text-slate-400">{item.code}</td>
                   <td className="py-2 text-right font-mono">{fmt(item.balance)}</td>
-                  <td className="py-2 text-right font-mono text-slate-400">—</td>
+                  <td className="py-2 text-right font-mono text-slate-400">â€”</td>
                 </tr>
               ))}
               <tr className="font-semibold bg-slate-50/50 dark:bg-slate-800/30">
@@ -498,7 +735,7 @@ export default function FinancialStatements() {
                   <td className="py-2 pl-4 text-slate-700 dark:text-slate-300">{item.name}</td>
                   <td className="py-2 text-center text-slate-400">{item.code}</td>
                   <td className="py-2 text-right font-mono">{fmt(Math.abs(item.balance || 0))}</td>
-                  <td className="py-2 text-right font-mono text-slate-400">—</td>
+                  <td className="py-2 text-right font-mono text-slate-400">â€”</td>
                 </tr>
               ))}
               <tr className="font-semibold bg-slate-50/50 dark:bg-slate-800/30">
@@ -526,7 +763,7 @@ export default function FinancialStatements() {
                   <td className="py-2 pl-4 text-slate-700 dark:text-slate-300">{item.name}</td>
                   <td className="py-2 text-center text-slate-400">{item.code}</td>
                   <td className="py-2 text-right font-mono">{fmt(Math.abs(item.balance || 0))}</td>
-                  <td className="py-2 text-right font-mono text-slate-400">—</td>
+                  <td className="py-2 text-right font-mono text-slate-400">â€”</td>
                 </tr>
               ))}
 
@@ -540,7 +777,7 @@ export default function FinancialStatements() {
                   <td className="py-2 pl-4 text-slate-700 dark:text-slate-300">{item.name}</td>
                   <td className="py-2 text-center text-slate-400">{item.code}</td>
                   <td className="py-2 text-right font-mono">{fmt(Math.abs(item.balance || 0))}</td>
-                  <td className="py-2 text-right font-mono text-slate-400">—</td>
+                  <td className="py-2 text-right font-mono text-slate-400">â€”</td>
                 </tr>
               ))}
 
@@ -554,7 +791,7 @@ export default function FinancialStatements() {
                   <td className="py-2 pl-4 text-slate-700 dark:text-slate-300">{item.name}</td>
                   <td className="py-2 text-center text-slate-400">{item.code}</td>
                   <td className="py-2 text-right font-mono">{fmt(Math.abs(item.balance || 0))}</td>
-                  <td className="py-2 text-right font-mono text-slate-400">—</td>
+                  <td className="py-2 text-right font-mono text-slate-400">â€”</td>
                 </tr>
               ))}
 
@@ -587,7 +824,7 @@ export default function FinancialStatements() {
               Statement of Cash Flows (Indirect Method)
             </h3>
             <p className="text-xs text-slate-400 mt-1">
-              For Year Ended 31 October 2024 · All amounts in {currCode}
+              For Year Ended 31 October 2024 Â· All amounts in {currCode}
             </p>
           </div>
 

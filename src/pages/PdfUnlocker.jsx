@@ -14,7 +14,7 @@ import { useAccountingStore } from '@/store/accountingStore'
 import { useAuthStore } from '@/store/authStore'
 
 const TOOLS = [
-  // { id: 'edit', label: 'Edit a PDF', icon: FileEdit, badge: 'ACROBAT #2' }, // Edit tool disabled
+  { id: 'edit', label: 'PDF Editor & Annotations', icon: FileEdit, badge: 'EDITOR' },
   { id: 'unlock', label: 'Password Stripper', icon: Unlock, badge: 'AUTO-STRIP' },
   { id: 'merge', label: 'Combine & Merge', icon: Files, badge: 'MULTI-PDF' },
   { id: 'organize', label: 'Organize & Rotate', icon: RotateCw, badge: 'PAGES' },
@@ -41,11 +41,11 @@ const AUDIT_TICK_MARKS = [
   { id: 'na', symbol: 'Ø', label: 'Immaterial / Non-Applicable Item', code: 'N/A', color: '#64748b' }
 ]
 
-export default function PdfUnlocker() {
+export default function PdfUnlocker({ defaultTool }) {
   const [searchParams] = useSearchParams()
-  const tabParam = searchParams.get('tab')
+  const tabParam = searchParams.get('tab') || defaultTool
 
-  const [activeTool, setActiveTool] = useState(tabParam === 'edit' ? 'edit' : 'unlock')
+  const [activeTool, setActiveTool] = useState(tabParam === 'edit' || defaultTool === 'edit' ? 'edit' : 'unlock')
   const [statusMessage, setStatusMessage] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [downloadUrl, setDownloadUrl] = useState(null)

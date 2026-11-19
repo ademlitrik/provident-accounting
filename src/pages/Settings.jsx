@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
@@ -39,7 +39,7 @@ const languages = [
   { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
 ]
 
-const currencies = ['USD ($)', 'ZAR (R)', 'GBP (£)', 'EUR (€)', 'AUD ($)', 'CAD ($)', 'BWP (P)', 'KES (KSh)', 'NGN (₦)']
+const currencies = ['USD ($)', 'ZAR (R)', 'GBP (Â£)', 'EUR (â‚¬)', 'AUD ($)', 'CAD ($)', 'BWP (P)', 'KES (KSh)', 'NGN (â‚¦)']
 
 export default function Settings() {
   const firm = useAuthStore(s => s.firm)
@@ -80,7 +80,7 @@ export default function Settings() {
         const p = result.filePaths[0]
         setStoragePath(p)
         updateCloudSync({ customStoragePath: p })
-        setStorageStatus('✓ Storage location updated')
+        setStorageStatus('âœ“ Storage location updated')
         setTimeout(() => setStorageStatus(''), 3000)
       }
     } else {
@@ -106,7 +106,7 @@ export default function Settings() {
       if (window.provident?.storage?.initBaseFolder) {
         await window.provident.storage.initBaseFolder(storagePath || undefined)
       }
-      setStorageStatus('✓ Base folder structure created successfully!')
+      setStorageStatus('âœ“ Base folder structure created successfully!')
     } catch (err) {
       setStorageStatus('Error: ' + err.message)
     }
@@ -309,7 +309,7 @@ export default function Settings() {
             </div>
           )}
 
-          {/* ── STORAGE & FOLDERS TAB ── */}
+          {/* â”€â”€ STORAGE & FOLDERS TAB â”€â”€ */}
           {activeTab === 'storage' && (
             <div className="space-y-6 max-w-2xl">
               <div>
@@ -345,16 +345,16 @@ export default function Settings() {
                   </button>
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Default: Desktop\Provident Clients — Change to any folder on your computer or external drive.
+                  Default: Desktop\Provident Clients â€” Change to any folder on your computer or external drive.
                 </p>
 
                 {storageStatus && (
                   <div className={`flex items-center gap-2 p-2.5 rounded text-xs ${
-                    storageStatus.startsWith('✓')
+                    storageStatus.startsWith('âœ“')
                       ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
                       : 'bg-amber-50 border border-amber-200 text-amber-800'
                   }`}>
-                    {storageStatus.startsWith('✓') ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                    {storageStatus.startsWith('âœ“') ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
                     <span>{storageStatus}</span>
                   </div>
                 )}
@@ -383,19 +383,19 @@ export default function Settings() {
                   Auto-Created Folder Structure
                 </h3>
                 <div className="p-4 bg-slate-900 text-green-400 rounded-lg font-mono text-[11px] leading-5">
-                  <div>📁 Provident Clients/</div>
-                  <div className="pl-4">📁 Client Name/</div>
-                  <div className="pl-8">📁 Uploaded Documents</div>
-                  <div className="pl-8">📁 PDF Documents</div>
-                  <div className="pl-8">📁 Bank Statements</div>
-                  <div className="pl-8">📁 Working Papers</div>
-                  <div className="pl-8">📁 Draft Financial Statements</div>
-                  <div className="pl-8">📁 Ledgers</div>
-                  <div className="pl-8">📁 Excel Files</div>
-                  <div className="pl-8">📁 Word Documents</div>
-                  <div className="pl-8">📁 Reports</div>
-                  <div className="pl-8">📁 Tax Schedules & CIPC</div>
-                  <div className="pl-8">📁 Audit Evidence</div>
+                  <div>ðŸ“ Provident Clients/</div>
+                  <div className="pl-4">ðŸ“ Client Name/</div>
+                  <div className="pl-8">ðŸ“ Uploaded Documents</div>
+                  <div className="pl-8">ðŸ“ PDF Documents</div>
+                  <div className="pl-8">ðŸ“ Bank Statements</div>
+                  <div className="pl-8">ðŸ“ Working Papers</div>
+                  <div className="pl-8">ðŸ“ Draft Financial Statements</div>
+                  <div className="pl-8">ðŸ“ Ledgers</div>
+                  <div className="pl-8">ðŸ“ Excel Files</div>
+                  <div className="pl-8">ðŸ“ Word Documents</div>
+                  <div className="pl-8">ðŸ“ Reports</div>
+                  <div className="pl-8">ðŸ“ Tax Schedules & CIPC</div>
+                  <div className="pl-8">ðŸ“ Audit Evidence</div>
                 </div>
 
                 <button
@@ -683,9 +683,9 @@ export default function Settings() {
                       defaultValue="A4"
                       className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2.5 py-1.5 focus:outline-none focus:border-[#5B5FC7]"
                     >
-                      <option value="A4">A4 (210 × 297 mm) — SA Statutory Standard</option>
-                      <option value="Letter">US Letter (8.5 × 11 in)</option>
-                      <option value="Legal">Legal (8.5 × 14 in)</option>
+                      <option value="A4">A4 (210 Ã— 297 mm) â€” SA Statutory Standard</option>
+                      <option value="Letter">US Letter (8.5 Ã— 11 in)</option>
+                      <option value="Legal">Legal (8.5 Ã— 14 in)</option>
                     </select>
                   </div>
 
@@ -895,7 +895,7 @@ export default function Settings() {
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     required
-                    placeholder="••••••••"
+                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                     className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#5B5FC7]"
                   />
                 </div>
@@ -908,7 +908,7 @@ export default function Settings() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
-                    placeholder="••••••••"
+                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                     className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#5B5FC7]"
                   />
                 </div>
@@ -921,7 +921,7 @@ export default function Settings() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    placeholder="••••••••"
+                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                     className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#5B5FC7]"
                   />
                 </div>
@@ -1023,7 +1023,7 @@ export default function Settings() {
               <div className="p-4 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-lg text-[11px] text-slate-500 space-y-1">
                 <span className="font-bold text-slate-700 dark:text-slate-300 block">Licensing & Copyright Notice</span>
                 <p>
-                  Copyright © 2026 Afro Vision Media. Designed, developed, and implemented by Tanyaradzwa Livingstone Bvute for Provident Financial Consultants. All rights reserved.
+                  Copyright Â© 2026 Afro Vision Media. Designed, developed, and implemented by Tanyaradzwa Livingstone Bvute for Provident Financial Consultants. All rights reserved.
                 </p>
               </div>
             </div>

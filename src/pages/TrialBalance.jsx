@@ -3,6 +3,8 @@ import { useAuthStore } from '@/store/authStore'
 import { Download, CheckCircle2, AlertTriangle, FileSpreadsheet, Scale, Printer, RefreshCw } from 'lucide-react'
 import { useAccountingStore, formatCurrency, getCurrencyCode } from '@/store/accountingStore'
 import { exportTrialBalancePdf } from '@/utils/pdfExport'
+import FileActionBar from '@/components/common/FileActionBar'
+import { saveToClientFolder, CLIENT_SUBFOLDERS } from '@/utils/clientStorage'
 
 const FALLBACK_TB = [
   { code: '1000', account: 'Cash & Cash Equivalents', debit: 284500, credit: 0, type: 'Asset' },
@@ -48,8 +50,9 @@ export default function TrialBalance() {
   const totalCredit = tbData.reduce((s, r) => s + (r.credit || 0), 0)
   const diff = Math.abs(totalDebit - totalCredit)
   const isBalanced = diff < 0.01
+  const [saveStatus, setSaveStatus] = useState('')
 
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
     const rows = [
       ['Provident Working Trial Balance', activeClient?.name || 'Selected Entity', `Currency: ${currCode}`],
       ['As at', '31 October 2024'],
@@ -62,13 +65,25 @@ export default function TrialBalance() {
     ]
 
     const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n")
+    const filename = `${(activeClient?.name || 'Provident').replace(/[^a-zA-Z0-9]/g, '_')}_Trial_Balance.csv`
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement("a")
     link.setAttribute("href", encodedUri)
-    link.setAttribute("download", `${(activeClient?.name || 'Provident').replace(/[^a-zA-Z0-9]/g, '_')}_Trial_Balance.csv`)
+    link.setAttribute("download", filename)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+
+    if (activeClient?.name) {
+      await saveToClientFolder({
+        clientName: activeClient.name,
+        subFolder: CLIENT_SUBFOLDERS.EXCEL_FILES,
+        fileName: filename,
+        fileData: csvContent
+      })
+      setSaveStatus(`Saved to: Clients/${activeClient.name}/Excel Files`)
+      setTimeout(() => setSaveStatus(''), 4000)
+    }
   }
 
   const [isExportingPdf, setIsExportingPdf] = useState(false)
@@ -89,6 +104,8 @@ export default function TrialBalance() {
         size: '86 KB',
         wpRef: 'TB-001'
       })
+      setSaveStatus(`Saved to: Clients/${activeClient?.name}/Reports`)
+      setTimeout(() => setSaveStatus(''), 4000)
     } catch (err) {
       console.error(err)
     }
@@ -97,6 +114,18 @@ export default function TrialBalance() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 print:p-0 print:space-y-3">
+      {/* Universal File Action Ribbon */}
+      <FileActionBar
+        title="Working Trial Balance Sheet"
+        clientName={activeClient?.name}
+        onSave={handleExportCsv}
+        onExportExcel={handleExportCsv}
+        onExportPdf={handleExportPdf}
+        onExportCsv={handleExportCsv}
+        onPrint={() => window.print()}
+        saveStatus={saveStatus}
+        subFolder={CLIENT_SUBFOLDERS.REPORTS}
+      />
       {/* ── PRINT-ONLY OFFICIAL AUDIT LETTERHEAD ── */}
       <div className="hidden print:block pb-3 mb-3 border-b-2 border-slate-900 text-slate-900">
         <div className="flex items-start justify-between">

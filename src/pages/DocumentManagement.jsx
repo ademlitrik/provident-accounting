@@ -1,10 +1,13 @@
 import { useState, useRef } from 'react'
 import {
   Folder, Upload, FileText, Search, Sparkles,
-  CheckCircle, Clock, Trash2, Eye, Filter, ShieldCheck, X, Download
+  CheckCircle, Clock, Trash2, Eye, Filter, ShieldCheck, X, Download,
+  HardDrive, FolderOpen
 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useAccountingStore } from '@/store/accountingStore'
+import FileActionBar from '@/components/common/FileActionBar'
+import { saveToClientFolder, CLIENT_SUBFOLDERS, openClientFolderInExplorer } from '@/utils/clientStorage'
 
 export default function DocumentManagement() {
   const documents = useAccountingStore(s => s.documents)
@@ -19,6 +22,7 @@ export default function DocumentManagement() {
   const [selectedDocId, setSelectedDocId] = useState(null)
   const [isScanning, setIsScanning] = useState(false)
   const [previewModalDoc, setPreviewModalDoc] = useState(null)
+  const [saveStatus, setSaveStatus] = useState('')
 
   const fileInputRef = useRef(null)
   const theme = useAppStore(s => s.theme)
@@ -39,30 +43,53 @@ export default function DocumentManagement() {
     if (!file) return
 
     setIsScanning(true)
-    const isPdf = file.name.endsWith('.pdf')
+    const isPdf = file.name.toLowerCase().endsWith('.pdf')
     const sizeMb = (file.size / (1024 * 1024)).toFixed(1) + ' MB'
+    const targetSub = isPdf ? CLIENT_SUBFOLDERS.PDF_DOCUMENTS : CLIENT_SUBFOLDERS.UPLOADED_DOCUMENTS
+
+    // Read and save directly into the physical client folder on disk
+    const reader = new FileReader()
+    reader.onload = async () => {
+      try {
+        if (activeClient?.name) {
+          await saveToClientFolder({
+            clientName: activeClient.name,
+            subFolder: targetSub,
+            fileName: file.name,
+            fileData: reader.result
+          })
+          setSaveStatus(`Saved to Clients/${activeClient.name}/${targetSub}`)
+          setTimeout(() => setSaveStatus(''), 4000)
+        }
+      } catch (err) {
+        console.error('Disk save error:', err)
+      }
+    }
+    reader.readAsDataURL(file)
 
     setTimeout(() => {
       const newDoc = {
+        clientId: activeClientId,
         name: file.name,
         type: isPdf ? 'PDF' : 'Image',
         size: sizeMb,
         category: 'Audit Evidence',
         wpRef: 'WP-001',
         ocrStatus: 'Processed',
-        extracted: `Extracted from ${file.name}: Verified digital signatures, checksum validated. Document hash: SHA256-${Math.random().toString(36).substring(2, 10).toUpperCase()}`
+        extracted: `Extracted from ${file.name}: Verified digital signatures, checksum validated. Saved to client folder: ${targetSub}`
       }
       const created = addDocument(newDoc)
       setSelectedDocId(created.id)
       setIsScanning(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
-    }, 1000)
+    }, 800)
   }
 
   const handleSimulateScan = () => {
     setIsScanning(true)
     setTimeout(() => {
       const newDoc = {
+        clientId: activeClientId,
         name: `Vendor_Equipment_Invoice_${Math.floor(1000 + Math.random() * 9000)}.pdf`,
         type: 'PDF',
         size: '1.2 MB',
@@ -87,6 +114,18 @@ export default function DocumentManagement() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6" style={{ userSelect: 'text' }}>
+      {/* Universal File Action Ribbon */}
+      <FileActionBar
+        title="Document Cabinet & Evidence"
+        clientName={activeClient?.name}
+        onNew={() => fileInputRef.current?.click()}
+        onOpen={() => fileInputRef.current?.click()}
+        onImport={(file) => handleFileUpload({ target: { files: [file] } })}
+        onPrint={() => window.print()}
+        saveStatus={saveStatus}
+        subFolder={CLIENT_SUBFOLDERS.UPLOADED_DOCUMENTS}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b"
            style={{ borderColor: isDark ? '#333339' : '#E5E7EB' }}>
@@ -104,6 +143,17 @@ export default function DocumentManagement() {
         </div>
 
         <div className="flex items-center gap-2">
+          {activeClient && (
+            <button
+              onClick={() => openClientFolderInExplorer(activeClient.name, CLIENT_SUBFOLDERS.UPLOADED_DOCUMENTS)}
+              className="flex items-center gap-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-200 px-3 py-1.5 rounded text-xs font-medium transition-colors shadow-2xs cursor-pointer"
+              title="Open client physical folder in Windows Explorer"
+            >
+              <FolderOpen size={13} className="text-amber-500" />
+              <span>Open in Explorer</span>
+            </button>
+          )}
+
           <input
             type="file"
             ref={fileInputRef}

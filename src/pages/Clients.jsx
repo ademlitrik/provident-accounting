@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import {
   Plus, Search, Building2, Mail, Phone, MapPin, X, Check,
   Edit2, Trash2, AlertTriangle, Image as ImageIcon, Upload, FileCheck,
-  Sparkles, Wand2, RefreshCw, Bot
+  Sparkles, Wand2, RefreshCw, Bot, FolderOpen
 } from 'lucide-react'
 import { useAccountingStore } from '@/store/accountingStore'
 import { askGemini, getGeminiKey } from '@/ai/gemini'
+import FileActionBar from '@/components/common/FileActionBar'
+import { openClientFolderInExplorer } from '@/utils/clientStorage'
 
 export default function Clients() {
   const navigate = useNavigate()
@@ -186,6 +188,13 @@ Output strictly raw JSON without markdown or code fences.`
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
+      {/* Universal File Action Ribbon */}
+      <FileActionBar
+        title="Entities & Clients Registry"
+        onNew={handleOpenAddModal}
+        onPrint={() => window.print()}
+      />
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
@@ -254,6 +263,16 @@ Output strictly raw JSON without markdown or code fences.`
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openClientFolderInExplorer(client.name)
+                      }}
+                      title={`Open ${client.name} folder on disk`}
+                      className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                    >
+                      <FolderOpen size={13} />
+                    </button>
                     <button
                       onClick={(e) => handleOpenEditModal(client, e)}
                       title="Edit Entity"

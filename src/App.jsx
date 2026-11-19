@@ -26,6 +26,7 @@ import AIAssistant from '@/pages/AIAssistant'
 import Settings from '@/pages/Settings'
 import UserManagement from '@/pages/UserManagement'
 import HelpCenter from '@/pages/HelpCenter'
+import AboutUs from '@/pages/AboutUs'
 function ProtectedRoute({ children }) {
   const isLoggedIn = useAuthStore(s => s.isLoggedIn)
   return isLoggedIn ? children : <Navigate to="/login" replace />
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="sampling" element={<SubstantiveSampling />} />
         <Route path="migrate" element={<FileMigrationHub />} />
         <Route path="unlock-pdf" element={<PdfUnlocker />} />
+        <Route path="pdf-editor" element={<PdfUnlocker defaultTool="edit" />} />
         <Route path="pdf-convert" element={<PdfConverter />} />
         <Route path="workflow" element={<FinancialWorkflow />} />
         <Route path="security" element={<SecurityComplianceCenter />} />
@@ -61,6 +63,7 @@ export default function App() {
         <Route path="settings" element={<Settings />} />
         <Route path="users" element={<UserManagement />} />
         <Route path="help" element={<HelpCenter />} />
+        <Route path="about" element={<AboutUs />} />
       </Route>
     </Routes>
   )

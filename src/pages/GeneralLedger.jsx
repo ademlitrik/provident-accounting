@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { Plus, Search, Filter, Download, X } from 'lucide-react'
 import { useAccountingStore } from '@/store/accountingStore'
+import FileActionBar from '@/components/common/FileActionBar'
+import { saveToClientFolder, CLIENT_SUBFOLDERS } from '@/utils/clientStorage'
 
 export default function GeneralLedger() {
   const activeClientId = useAccountingStore(s => s.activeClientId)
@@ -41,9 +43,10 @@ export default function GeneralLedger() {
     )
   }, [journals, search])
 
-  const handleExport = () => {
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
+  const [saveStatus, setSaveStatus] = useState('')
+
+  const handleExport = async () => {
+    const rawCsv =
       'Reference,Date,Description,Debit Account,Credit Account,Amount,Status,Author\n' +
       journals
         .map(
@@ -52,13 +55,26 @@ export default function GeneralLedger() {
         )
         .join('\n')
 
+    const csvContent = 'data:text/csv;charset=utf-8,' + rawCsv
+    const filename = `${(activeClient?.name || 'Provident').replace(/[^a-zA-Z0-9]/g, '_')}_General_Ledger.csv`
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
-    link.setAttribute('download', 'Provident_General_Ledger.csv')
+    link.setAttribute('download', filename)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+
+    if (activeClient?.name) {
+      await saveToClientFolder({
+        clientName: activeClient.name,
+        subFolder: CLIENT_SUBFOLDERS.LEDGERS,
+        fileName: filename,
+        fileData: rawCsv
+      })
+      setSaveStatus(`Saved to: Clients/${activeClient.name}/Ledgers`)
+      setTimeout(() => setSaveStatus(''), 4000)
+    }
   }
 
   const handleSubmit = e => {
@@ -81,6 +97,18 @@ export default function GeneralLedger() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
+      {/* Universal File Action Ribbon */}
+      <FileActionBar
+        title="General Ledger & Journals"
+        clientName={activeClient?.name}
+        onNew={() => setIsModalOpen(true)}
+        onSave={handleExport}
+        onExportCsv={handleExport}
+        onExportExcel={handleExport}
+        onPrint={() => window.print()}
+        saveStatus={saveStatus}
+        subFolder={CLIENT_SUBFOLDERS.LEDGERS}
+      />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>

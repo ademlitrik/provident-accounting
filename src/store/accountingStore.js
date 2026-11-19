@@ -172,6 +172,11 @@ export const useAccountingStore = create(
       activeClientId: 1,
       setActiveClientId: (id) => {
         const client = get().clients.find(c => c.id === id)
+        if (client && typeof window !== 'undefined' && window.provident?.storage?.createClientFolder) {
+          try {
+            window.provident.storage.createClientFolder({ clientName: client.name })
+          } catch (_) {}
+        }
         const nowStr = new Date().toLocaleDateString('en-ZA', { 
           day: 'numeric', 
           month: 'short', 
@@ -343,6 +348,11 @@ export const useAccountingStore = create(
       // ── Client CRUD ──
       addClient: (client, withStarterData = true) => {
         const newClient = { ...client, id: Date.now() }
+        if (newClient.name && typeof window !== 'undefined' && window.provident?.storage?.createClientFolder) {
+          try {
+            window.provident.storage.createClientFolder({ clientName: newClient.name })
+          } catch (_) {}
+        }
         let newAccounts = []
         let newJournals = []
         let newBankItems = []

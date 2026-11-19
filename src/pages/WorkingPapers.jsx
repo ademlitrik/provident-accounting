@@ -5,6 +5,8 @@ import {
 } from 'lucide-react'
 import { useAccountingStore } from '@/store/accountingStore'
 import { useAuthStore } from '@/store/authStore'
+import FileActionBar from '@/components/common/FileActionBar'
+import { saveToClientFolder, CLIENT_SUBFOLDERS } from '@/utils/clientStorage'
 
 export default function WorkingPapers() {
   const firm = useAuthStore(s => s.firm)
@@ -61,24 +63,51 @@ export default function WorkingPapers() {
     })
   }
 
-  const handleExport = () => {
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + `Engagement Entity:,"${activeClient?.name || 'Provident'}"\n`
-      + `Framework:,"ISA 230 / Probe MMX Audit Working Papers"\n\n`
-      + "Index,Section,Title,Assigned Auditor,Ledger Balance,Risk Level,Audit Status\n"
-      + clientPapers.map(p => `"${p.id}","${p.section}","${p.title}","${p.assignee}","${p.balance}","${p.risk}","${p.status}"`).join("\n")
-    
+  const [saveStatus, setSaveStatus] = useState('')
+
+  const handleExport = async () => {
+    const rawCsv =
+      `Engagement Entity:,"${activeClient?.name || 'Provident'}"\n` +
+      `Framework:,"ISA 230 / Probe MMX Audit Working Papers"\n\n` +
+      "Index,Section,Title,Assigned Auditor,Ledger Balance,Risk Level,Audit Status\n" +
+      clientPapers.map(p => `"${p.id}","${p.section}","${p.title}","${p.assignee}","${p.balance}","${p.risk}","${p.status}"`).join("\n")
+
+    const csvContent = "data:text/csv;charset=utf-8," + rawCsv
+    const filename = `${(activeClient?.name || 'Provident').replace(/[^a-zA-Z0-9]/g, '_')}_Audit_Working_Papers.csv`
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement("a")
     link.setAttribute("href", encodedUri)
-    link.setAttribute("download", `${(activeClient?.name || 'Provident').replace(/[^a-zA-Z0-9]/g, '_')}_Audit_Working_Papers.csv`)
+    link.setAttribute("download", filename)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+
+    if (activeClient?.name) {
+      await saveToClientFolder({
+        clientName: activeClient.name,
+        subFolder: CLIENT_SUBFOLDERS.WORKING_PAPERS,
+        fileName: filename,
+        fileData: rawCsv
+      })
+      setSaveStatus(`Saved to: Clients/${activeClient.name}/Working Papers`)
+      setTimeout(() => setSaveStatus(''), 4000)
+    }
   }
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
+      {/* Universal File Action Ribbon */}
+      <FileActionBar
+        title="ISA 230 Working Papers"
+        clientName={activeClient?.name}
+        onNew={() => setIsModalOpen(true)}
+        onSave={handleExport}
+        onExportCsv={handleExport}
+        onExportExcel={handleExport}
+        onPrint={() => window.print()}
+        saveStatus={saveStatus}
+        subFolder={CLIENT_SUBFOLDERS.WORKING_PAPERS}
+      />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>

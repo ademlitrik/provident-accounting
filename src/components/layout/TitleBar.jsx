@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useAccountingStore } from '@/store/accountingStore'
+import { openClientFolderInExplorer } from '@/utils/clientStorage'
 import providentLogo from '@/assets/provident_logo_raw.png'
 
 export default function TitleBar({ onOpenAbout }) {
@@ -664,10 +665,32 @@ export default function TitleBar({ onOpenAbout }) {
                 <span>Export Financial Statements (PDF)...</span>
               </button>
               <button
+                onClick={() => { navigate('/pdf-convert'); setActiveMenu(null) }}
+                className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between"
+              >
+                <span>Document & PDF Converter (Excel/Word/PPT)...</span>
+              </button>
+              <button
+                onClick={() => { navigate('/workflow'); setActiveMenu(null) }}
+                className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between"
+              >
+                <span>Financial Preparation Workflow (8-Step)...</span>
+              </button>
+              <button
                 onClick={() => { navigate('/cipc-ixbrl'); setActiveMenu(null) }}
                 className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between"
               >
                 <span>Export CIPC iXBRL (.xhtml)...</span>
+              </button>
+              <button
+                onClick={() => {
+                  const activeClient = clients.find(c => c.id === activeClientId)
+                  openClientFolderInExplorer(activeClient?.name)
+                  setActiveMenu(null)
+                }}
+                className="w-full text-left px-3 py-1.5 hover:bg-slate-100 flex items-center justify-between"
+              >
+                <span>Open Client Folder on Disk...</span>
               </button>
 
               <div className="border-t border-slate-100 my-1" />

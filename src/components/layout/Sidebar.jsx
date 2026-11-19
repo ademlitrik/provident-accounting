@@ -4,7 +4,7 @@ import {
   ClipboardList, Bot, Settings, ChevronLeft, ChevronRight,
   LogOut, Landmark, List, Calculator, FolderGit2, ShieldCheck,
   Database, Key, FileCode, FileSpreadsheet, Clock, UserCheck, Info, HelpCircle,
-  Workflow, FileDown, FolderOpen
+  Workflow, FileDown, FolderOpen, FileEdit
 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
@@ -19,6 +19,7 @@ const sections = [
       { to: '/clients',    icon: Users,            label: 'Entities & Clients' },
       { to: '/workflow',   icon: Workflow,         label: 'Financial Workflow',  badge: 'GUIDE' },
       { to: '/help',       icon: HelpCircle,       label: 'Help & Knowledge Base' },
+      { to: '/about',      icon: Info,             label: 'About Us & Credits' },
     ]
   },
   {
@@ -52,6 +53,7 @@ const sections = [
     items: [
       { to: '/documents',   icon: FolderOpen,    label: 'Document Cabinet & OCR' },
       { to: '/pdf-convert', icon: FileDown,      label: 'PDF Converter',            badge: 'XLS/WORD' },
+      { to: '/pdf-editor',  icon: FileEdit,      label: 'PDF Editor & Markup',      badge: 'EDITOR' },
       { to: '/unlock-pdf',  icon: Key,           label: 'Audit PDF Studio',          badge: 'PRO' },
     ]
   },
