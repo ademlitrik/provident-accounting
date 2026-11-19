@@ -15,6 +15,13 @@ import { useAccountingStore, formatCurrency, getCurrencyCode } from '@/store/acc
 import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
 import { saveToClientFolder, CLIENT_SUBFOLDERS, openClientFolderInExplorer } from '@/utils/clientStorage'
+import {
+  extractHighFidelityPdf,
+  exportToExcelHighFidelity,
+  exportToWordHighFidelity,
+  exportToPowerPointHighFidelity,
+  escapeHtml
+} from '@/utils/pdfExtractor'
 
 // Configure pdfjs worker with bundled asset (offline support)
 if (pdfjsLib?.GlobalWorkerOptions) {
@@ -45,13 +52,7 @@ const SAMPLE_BANK_STATEMENT = {
   ]
 }
 
-function escapeHtml(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+
 
 function downloadBlob(data, filename, mimeType) {
   const blob = new Blob([data], { type: mimeType })
@@ -79,6 +80,8 @@ export default function PdfConverterWorkbench({ initialMode = 'pdf-excel', onMod
   // State
   const [selectedFormat, setSelectedFormat] = useState('excel') // 'excel', 'word', 'ppt', 'preview'
   const [activeTab, setActiveTab] = useState('grid') // 'grid', 'excel', 'word', 'ppt', 'raw'
+  const [conversionMode, setConversionMode] = useState('document') // 'document' (Preserve original layout & tables) | 'bank' (Bank Statement mode)
+  const [docData, setDocData] = useState(null)
   const [uploadedFile, setUploadedFile] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
@@ -135,7 +138,7 @@ export default function PdfConverterWorkbench({ initialMode = 'pdf-excel', onMod
     }
   }, [pdfDoc, currentPage, zoomScale])
 
-  // Extract tabular structure from uploaded PDF
+  // Extract tabular structure from uploaded PDF with High-Fidelity Layout Preservation
   const handlePdfFile = async (file) => {
     if (!file) return
     setIsProcessing(true)
@@ -151,88 +154,27 @@ export default function PdfConverterWorkbench({ initialMode = 'pdf-excel', onMod
       setNumPages(loadedPdf.numPages)
       setCurrentPage(1)
 
-      // Extract text with row & column coordinates
-      const parsedRows = []
-      const allText = []
+      // High-Fidelity Extraction preserving real document columns and layout
+      const data = await extractHighFidelityPdf(file)
+      setDocData(data)
+      setRawTextLines(data.allRawLines)
 
-      for (let i = 1; i <= loadedPdf.numPages; i++) {
-        const page = await loadedPdf.getPage(i)
-        const content = await page.getTextContent()
-
-        const rowMap = {}
-        for (const item of content.items) {
-          if (!item.str?.trim()) continue
-          // Round Y coordinate to 5px to group text into rows
-          const y = Math.round(item.transform[5] / 6) * 6
-          if (!rowMap[y]) rowMap[y] = []
-          rowMap[y].push({ x: item.transform[4], text: item.str.trim() })
-        }
-
-        const sortedRows = Object.entries(rowMap)
-          .sort(([a], [b]) => Number(b) - Number(a))
-          .map(([, cells]) => cells.sort((a, b) => a.x - b.x).map(c => c.text))
-
-        sortedRows.forEach((r, idx) => {
-          allText.push(r.join('  '))
-          // Detect bank or financial statement rows
-          // Look for rows with date or amounts
-          const joined = r.join(' ')
-          const hasDate = /\b\d{4}[-/.]\d{2}[-/.]\d{2}\b|\b\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{2,4}\b/i.test(joined)
-          const numbers = r.filter(c => /^-?R?\$?€?£?\s*(\d{1,3}(,\d{3})*|\d+)(\.\d{2})?$/.test(c.trim()))
-
-          if (r.length >= 3 || hasDate) {
-            let debit = 0
-            let credit = 0
-            let balance = 0
-
-            // parse numbers
-            numbers.forEach((numStr, ni) => {
-              const clean = parseFloat(numStr.replace(/[^0-9.-]/g, ''))
-              if (!isNaN(clean)) {
-                if (ni === 0 && clean > 0) debit = clean
-                else if (ni === 1 && clean > 0) credit = clean
-                else balance = clean
-              }
-            })
-
-            parsedRows.push({
-              id: parsedRows.length + 1,
-              date: r[0] || new Date().toISOString().split('T')[0],
-              desc: r.slice(1, Math.max(2, r.length - 2)).join(' ') || `Transaction line ${idx + 1}`,
-              ref: r[r.length - 1] || `REF-${Math.floor(1000 + Math.random() * 9000)}`,
-              debit: debit,
-              credit: credit,
-              balance: balance
-            })
-          }
-        })
-      }
-
-      setRawTextLines(allText)
-      if (parsedRows.length > 0) {
-        setExtractedRows(parsedRows)
+      if (data.isBankStatement && data.bankRows?.length > 0) {
+        setExtractedRows(data.bankRows)
+        setConversionMode('bank')
       } else {
-        // Fallback to parsed raw rows
-        const defaultExtracted = allText.slice(0, 20).map((line, idx) => ({
-          id: idx + 1,
-          date: '2024-10-15',
-          desc: line.substring(0, 50),
-          ref: `REF-${1000 + idx}`,
-          debit: 0,
-          credit: 0,
-          balance: 0
-        }))
-        setExtractedRows(defaultExtracted)
+        setExtractedRows(data.bankRows.length > 0 ? data.bankRows : SAMPLE_BANK_STATEMENT.rows)
+        setConversionMode('document')
       }
 
       setDocumentMetadata({
         title: file.name,
         client: activeClient?.name || 'General Client',
-        account: 'Auto-Detected',
+        account: data.isBankStatement ? 'Bank Statement' : 'Standard Document / Table',
         period: `${loadedPdf.numPages} Page(s) Extracted`
       })
 
-      setStatusMessage(`✓ Successfully extracted ${loadedPdf.numPages} pages with ${parsedRows.length || allText.length} structured rows!`)
+      setStatusMessage(`✓ Successfully extracted ${loadedPdf.numPages} pages with ${data.allGridRows.length} structured rows & ${data.columnHeaders.length} columns!`)
     } catch (err) {
       console.error(err)
       setErrorMessage(`Failed to extract PDF: ${err.message}. If encrypted, please use Password Stripper first.`)
@@ -244,6 +186,18 @@ export default function PdfConverterWorkbench({ initialMode = 'pdf-excel', onMod
   const handleLoadSampleStatement = () => {
     setUploadedFile({ name: SAMPLE_BANK_STATEMENT.fileName, size: 452000 })
     setExtractedRows(SAMPLE_BANK_STATEMENT.rows)
+    setDocData({
+      fileName: SAMPLE_BANK_STATEMENT.fileName,
+      numPages: 1,
+      pages: [{ pageNumber: 1, grid: SAMPLE_BANK_STATEMENT.rows.map(r => [r.date, r.desc, r.ref, r.debit, r.credit, r.balance]) }],
+      allGridRows: SAMPLE_BANK_STATEMENT.rows.map(r => [r.date, r.desc, r.ref, r.debit, r.credit, r.balance]),
+      columnHeaders: ['Date', 'Description', 'Reference', 'Debit', 'Credit', 'Balance'],
+      detectedColumnCount: 6,
+      isBankStatement: true,
+      bankRows: SAMPLE_BANK_STATEMENT.rows,
+      allRawLines: SAMPLE_BANK_STATEMENT.rows.map(r => `${r.date}  ${r.desc}  ${r.ref}  ${r.debit}  ${r.credit}  ${r.balance}`)
+    })
+    setConversionMode('bank')
     setDocumentMetadata({
       title: SAMPLE_BANK_STATEMENT.fileName,
       client: SAMPLE_BANK_STATEMENT.clientName,
@@ -263,72 +217,27 @@ export default function PdfConverterWorkbench({ initialMode = 'pdf-excel', onMod
   // 1. Export Excel Workbook (.xlsx)
   const handleExportExcel = async () => {
     setIsProcessing(true)
-    setStatusMessage('Generating calculation-ready Microsoft Excel (.xlsx) workbook...')
+    setStatusMessage('Generating high-fidelity Microsoft Excel (.xlsx) workbook preserving document columns...')
     try {
-      const wb = XLSX.utils.book_new()
+      const activeDocData = docData || {
+        fileName: documentMetadata.title,
+        numPages: 1,
+        pages: [{ pageNumber: 1, grid: extractedRows.map(r => [r.date, r.desc, r.ref, r.debit, r.credit, r.balance]) }],
+        allGridRows: extractedRows.map(r => [r.date, r.desc, r.ref, r.debit, r.credit, r.balance]),
+        columnHeaders: ['Date', 'Description', 'Reference', 'Debit', 'Credit', 'Balance'],
+        isBankStatement: true,
+        bankRows: extractedRows
+      }
 
-      // Sheet 1: Bank & Financial Statement Schedule
-      const mainHeaders = [
-        ['PROVIDENT ACCOUNTING & AUDIT SUITE — EXTRACTED FINANCIAL SCHEDULE'],
-        [`Client Entity: ${activeClient?.name || documentMetadata.client}`],
-        [`Document Title: ${documentMetadata.title}`],
-        [`Reporting Period: ${documentMetadata.period} | Currency: ${currCode}`],
-        [],
-        ['Line #', 'Transaction Date', 'Transaction Description / Narrative', 'Reference Code', `Debit Amount (${currCode})`, `Credit Amount (${currCode})`, `Running Balance (${currCode})`, 'Audit Status']
-      ]
+      const excelBytes = exportToExcelHighFidelity({
+        docData: activeDocData,
+        clientName: activeClient?.name,
+        firmName: firm?.name,
+        currCode,
+        bankMode: conversionMode === 'bank'
+      })
 
-      const mainData = extractedRows.map((r, i) => [
-        i + 1,
-        r.date,
-        r.desc,
-        r.ref,
-        Number(r.debit) || 0,
-        Number(r.credit) || 0,
-        Number(r.balance) || 0,
-        'Agreed to Statement'
-      ])
-
-      const summaryRow = [
-        [''],
-        ['TOTAL MOVEMENT', '', '', '', totalDebits, totalCredits, netMovement, 'ISA 500 Verified']
-      ]
-
-      const ws1 = XLSX.utils.aoa_to_sheet([...mainHeaders, ...mainData, ...summaryRow])
-      ws1['!cols'] = [
-        { wch: 8 },
-        { wch: 15 },
-        { wch: 45 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 20 },
-        { wch: 22 }
-      ]
-      XLSX.utils.book_append_sheet(wb, ws1, 'Extracted Statement')
-
-      // Sheet 2: Bank Reconciliation Sheet
-      const reconHeaders = [
-        ['BANK RECONCILIATION AUDIT WORKING PAPER (ISA 500)'],
-        [`Entity: ${activeClient?.name}`],
-        [`Extracted from: ${documentMetadata.title}`],
-        [],
-        ['Date', 'Transaction Narrative', 'Bank Reference', 'Statement Amount', 'Matched GL Journal', 'Sign-Off Auditor']
-      ]
-      const reconData = extractedRows.map(r => [
-        r.date,
-        r.desc,
-        r.ref,
-        r.credit ? r.credit : -r.debit,
-        'Pending Match',
-        firm?.name || 'Provident Partner'
-      ])
-      const ws2 = XLSX.utils.aoa_to_sheet([...reconHeaders, ...reconData])
-      ws2['!cols'] = [{ wch: 14 }, { wch: 42 }, { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 25 }]
-      XLSX.utils.book_append_sheet(wb, ws2, 'Reconciliation Ledger')
-
-      const excelBytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
       const filename = `${documentMetadata.title.replace(/\.[^.]+$/, '')}_Extracted_Schedule.xlsx`
-
       downloadBlob(excelBytes, filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
       // Save to client's dedicated physical storage folder
@@ -361,79 +270,24 @@ export default function PdfConverterWorkbench({ initialMode = 'pdf-excel', onMod
   // 2. Export Word Document (.doc)
   const handleExportWord = async () => {
     setIsProcessing(true)
-    setStatusMessage('Generating formatted Microsoft Word (.doc) document...')
+    setStatusMessage('Generating formatted Microsoft Word (.doc) document preserving headings and layout...')
     try {
-      const filename = `${documentMetadata.title.replace(/\.[^.]+$/, '')}_Document.doc`
+      const activeDocData = docData || {
+        fileName: documentMetadata.title,
+        numPages: 1,
+        pages: [{ pageNumber: 1, grid: extractedRows.map(r => [r.date, r.desc, r.ref, r.debit, r.credit, r.balance]) }],
+        allGridRows: extractedRows.map(r => [r.date, r.desc, r.ref, r.debit, r.credit, r.balance]),
+        columnHeaders: ['Date', 'Description', 'Reference', 'Debit', 'Credit', 'Balance']
+      }
 
-      let docHtml = `<!DOCTYPE html>
-<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-<head>
-<meta charset='utf-8'>
-<title>${escapeHtml(documentMetadata.title)}</title>
-<style>
-  body { font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #1e293b; line-height: 1.5; margin: 40px; }
-  h1 { font-size: 18pt; color: #0f172a; border-bottom: 2px solid #5b5fc7; padding-bottom: 6px; margin-bottom: 8px; }
-  .subtitle { font-size: 10pt; color: #64748b; margin-bottom: 25px; }
-  table { border-collapse: collapse; width: 100%; margin-top: 15px; margin-bottom: 20px; }
-  th, td { border: 1px solid #cbd5e1; padding: 7px 12px; font-size: 10pt; text-align: left; }
-  th { background-color: #f1f5f9; font-weight: bold; color: #0f172a; }
-  tr:nth-child(even) td { background-color: #f8fafc; }
-  .num { text-align: right; font-family: 'Consolas', monospace; }
-  .total-row td { font-weight: bold; background-color: #e2e8f0; border-top: 2px solid #64748b; }
-  .footer { font-size: 9pt; color: #94a3b8; text-align: center; margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-</style>
-</head>
-<body>
-  <h1>${escapeHtml(documentMetadata.title.replace(/\.[^.]+$/, ''))}</h1>
-  <div class="subtitle">
-    <strong>Client Entity:</strong> ${escapeHtml(activeClient?.name || documentMetadata.client)} &bull;
-    <strong>Converted:</strong> ${new Date().toLocaleString('en-ZA')} &bull;
-    <strong>Application:</strong> Provident Accounting &amp; Audit Practice Suite
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 50px;">#</th>
-        <th style="width: 100px;">Date</th>
-        <th>Transaction Description</th>
-        <th style="width: 120px;">Reference</th>
-        <th style="width: 110px;" class="num">Debit (${currCode})</th>
-        <th style="width: 110px;" class="num">Credit (${currCode})</th>
-        <th style="width: 120px;" class="num">Balance (${currCode})</th>
-      </tr>
-    </thead>
-    <tbody>`
-
-      extractedRows.forEach((r, idx) => {
-        docHtml += `
-      <tr>
-        <td>${idx + 1}</td>
-        <td>${escapeHtml(r.date)}</td>
-        <td>${escapeHtml(r.desc)}</td>
-        <td>${escapeHtml(r.ref)}</td>
-        <td class="num">${r.debit ? Number(r.debit).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</td>
-        <td class="num">${r.credit ? Number(r.credit).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}</td>
-        <td class="num">${Number(r.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-      </tr>`
+      const docHtml = exportToWordHighFidelity({
+        docData: activeDocData,
+        clientName: activeClient?.name,
+        firmName: firm?.name,
+        currCode
       })
 
-      docHtml += `
-      <tr class="total-row">
-        <td colspan="4">TOTAL EXTRACTED SUMMARY</td>
-        <td class="num">${totalDebits.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-        <td class="num">${totalCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-        <td class="num">${netMovement.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="footer">
-    Provident Accounting Suite &bull; South Africa Standard (ISA / IFRS for SMEs) &bull; Verified Working Paper Dossier
-  </div>
-</body>
-</html>`
-
+      const filename = `${documentMetadata.title.replace(/\.[^.]+$/, '')}_Document.doc`
       downloadBlob(docHtml, filename, 'application/msword')
 
       if (activeClient?.name) {
@@ -456,101 +310,24 @@ export default function PdfConverterWorkbench({ initialMode = 'pdf-excel', onMod
   // 3. Export PowerPoint Presentation (.html / presentation)
   const handleExportPowerPoint = async () => {
     setIsProcessing(true)
-    setStatusMessage('Generating PowerPoint executive audit presentation...')
+    setStatusMessage('Generating PowerPoint presentation slides preserving page layouts...')
     try {
+      const activeDocData = docData || {
+        fileName: documentMetadata.title,
+        numPages: 1,
+        pages: [{ pageNumber: 1, grid: extractedRows.map(r => [r.date, r.desc, r.ref, r.debit, r.credit, r.balance]) }],
+        allGridRows: extractedRows.map(r => [r.date, r.desc, r.ref, r.debit, r.credit, r.balance]),
+        columnHeaders: ['Date', 'Description', 'Reference', 'Debit', 'Credit', 'Balance']
+      }
+
+      const pptHtml = exportToPowerPointHighFidelity({
+        docData: activeDocData,
+        clientName: activeClient?.name,
+        firmName: firm?.name,
+        currCode
+      })
+
       const filename = `${documentMetadata.title.replace(/\.[^.]+$/, '')}_Slides.html`
-
-      let pptHtml = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>${escapeHtml(documentMetadata.title)} - Audit Presentation</title>
-<style>
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 30px; }
-  .slide { width: 900px; min-height: 520px; background: #ffffff; color: #1e293b; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); padding: 40px 50px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; page-break-after: always; }
-  .slide-header { border-bottom: 2px solid #5b5fc7; padding-bottom: 12px; }
-  .slide-header h2 { margin: 0; color: #0f172a; font-size: 20pt; }
-  .slide-header p { margin: 4px 0 0 0; color: #64748b; font-size: 11pt; }
-  .slide-body { flex: 1; padding: 25px 0; }
-  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px; }
-  .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; text-align: center; }
-  .stat-val { font-size: 18pt; font-weight: bold; color: #4338ca; }
-  .stat-label { font-size: 9pt; color: #64748b; text-transform: uppercase; margin-top: 4px; }
-  table { border-collapse: collapse; width: 100%; font-size: 9pt; }
-  th, td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left; }
-  th { background: #f1f5f9; color: #0f172a; }
-  .slide-footer { border-top: 1px solid #f1f5f9; padding-top: 10px; display: flex; justify-content: space-between; font-size: 9pt; color: #94a3b8; }
-</style>
-</head>
-<body>
-  <!-- Slide 1: Title Slide -->
-  <div class="slide" style="background: linear-gradient(135deg, #1e1b4b, #312e81); color: white;">
-    <div style="margin-top: 80px;">
-      <span style="background: #4f46e5; color: white; padding: 4px 12px; border-radius: 4px; font-size: 10pt; font-weight: bold; letter-spacing: 1px;">FINANCIAL AUDIT DOSSIER</span>
-      <h1 style="font-size: 32pt; margin: 20px 0 10px 0; font-weight: 800; color: #ffffff;">${escapeHtml(activeClient?.name || documentMetadata.client)}</h1>
-      <p style="font-size: 14pt; color: #c7d2fe; margin: 0;">Extracted Statement &amp; Document Review</p>
-    </div>
-    <div style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 20px; font-size: 10pt; color: #a5b4fc; display: flex; justify-content: space-between;">
-      <span>Source: ${escapeHtml(documentMetadata.title)}</span>
-      <span>Provident Accounting &amp; Audit Practice Suite</span>
-    </div>
-  </div>
-
-  <!-- Slide 2: Executive Summary & Reconciliation -->
-  <div class="slide">
-    <div class="slide-header">
-      <h2>Financial Movement Summary</h2>
-      <p>Key financial figures and numerical integrity analysis</p>
-    </div>
-    <div class="slide-body">
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-val">${totalDebits.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-          <div class="stat-label">Total Outflows / Debits (${currCode})</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-val" style="color: #16a34a;">${totalCredits.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-          <div class="stat-label">Total Inflows / Credits (${currCode})</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-val" style="color: #2563eb;">${netMovement.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-          <div class="stat-label">Net Movement (${currCode})</div>
-        </div>
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Description</th>
-            <th>Ref</th>
-            <th style="text-align: right;">Debit</th>
-            <th style="text-align: right;">Credit</th>
-            <th style="text-align: right;">Balance</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${extractedRows.slice(0, 6).map(r => `
-            <tr>
-              <td>${escapeHtml(r.date)}</td>
-              <td>${escapeHtml(r.desc)}</td>
-              <td>${escapeHtml(r.ref)}</td>
-              <td style="text-align: right;">${r.debit ? Number(r.debit).toLocaleString() : '-'}</td>
-              <td style="text-align: right;">${r.credit ? Number(r.credit).toLocaleString() : '-'}</td>
-              <td style="text-align: right;">${Number(r.balance).toLocaleString()}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-    <div class="slide-footer">
-      <span>${escapeHtml(activeClient?.name)}</span>
-      <span>Page 2 of 2</span>
-    </div>
-  </div>
-</body>
-</html>`
-
       downloadBlob(pptHtml, filename, 'text/html')
 
       if (activeClient?.name) {
@@ -945,58 +722,134 @@ export default function PdfConverterWorkbench({ initialMode = 'pdf-excel', onMod
                 </button>
               </div>
 
-              {/* Row Count Badge */}
-              <span className="text-[11px] font-semibold text-slate-500">
-                {extractedRows.length} Validated Records
-              </span>
+              {/* Mode Selector Pill & Row Count */}
+              <div className="flex items-center gap-2">
+                <div className="inline-flex rounded-md p-0.5 bg-slate-200/80 border border-slate-300">
+                  <button
+                    type="button"
+                    onClick={() => setConversionMode('document')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
+                      conversionMode === 'document'
+                        ? 'bg-white text-indigo-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                    title="Preserves original columns, tables, headers and exact arrangement"
+                  >
+                    Exact Layout
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConversionMode('bank')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer ${
+                      conversionMode === 'bank'
+                        ? 'bg-white text-emerald-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                    title="Formats into Debits, Credits, and Balances for bank statement reconciliation"
+                  >
+                    Bank Statement View
+                  </button>
+                </div>
+                <span className="text-[11px] font-semibold text-slate-500">
+                  {conversionMode === 'document' && docData
+                    ? `${docData.allGridRows.length} Rows · ${docData.columnHeaders.length} Cols`
+                    : `${extractedRows.length} Records`}
+                </span>
+              </div>
             </div>
 
             {/* TAB CONTENT 1: TABLE GRID VIEW */}
             {activeTab === 'grid' && (
               <div className="p-0">
                 <div className="overflow-x-auto max-h-[460px]">
-                  <table className="w-full text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold sticky top-0 z-10">
-                      <tr>
-                        <th className="px-3 py-2.5 text-left w-12">#</th>
-                        <th className="px-3 py-2.5 text-left w-24">Date</th>
-                        <th className="px-3 py-2.5 text-left">Description / Narrative</th>
-                        <th className="px-3 py-2.5 text-left w-24">Reference</th>
-                        <th className="px-3 py-2.5 text-right w-28">Debit ({currCode})</th>
-                        <th className="px-3 py-2.5 text-right w-28">Credit ({currCode})</th>
-                        <th className="px-3 py-2.5 text-right w-28">Balance ({currCode})</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {extractedRows.map((r, idx) => (
-                        <tr key={r.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="px-3 py-2 font-mono text-slate-400 text-[11px]">{idx + 1}</td>
-                          <td className="px-3 py-2 font-mono text-slate-600">{r.date}</td>
-                          <td className="px-3 py-2 font-medium text-slate-900">{r.desc}</td>
-                          <td className="px-3 py-2 font-mono text-slate-500 text-[11px]">{r.ref}</td>
-                          <td className="px-3 py-2 text-right font-mono text-slate-700">
-                            {r.debit ? Number(r.debit).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}
-                          </td>
-                          <td className="px-3 py-2 text-right font-mono text-emerald-700 font-semibold">
-                            {r.credit ? Number(r.credit).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}
-                          </td>
-                          <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">
-                            {Number(r.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </td>
+                  {conversionMode === 'document' && docData ? (
+                    <table className="w-full text-xs">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold sticky top-0 z-10">
+                        <tr>
+                          <th className="px-3 py-2.5 text-left w-12">#</th>
+                          {docData.columnHeaders.map((header, hIdx) => (
+                            <th key={hIdx} className="px-3 py-2.5 text-left font-bold text-slate-800 truncate">
+                              {header}
+                            </th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {docData.allGridRows.map((row, rIdx) => (
+                          <tr key={rIdx} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="px-3 py-2 font-mono text-slate-400 text-[11px]">{rIdx + 1}</td>
+                            {row.map((cell, cIdx) => {
+                              const isNum = /^-?R?\$?€?£?\s*\d/.test(String(cell || '').trim())
+                              return (
+                                <td
+                                  key={cIdx}
+                                  className={`px-3 py-2 ${
+                                    isNum
+                                      ? 'text-right font-mono text-slate-900'
+                                      : 'text-slate-700'
+                                  }`}
+                                >
+                                  {cell || <span className="text-slate-300 font-mono">—</span>}
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <table className="w-full text-xs">
+                      <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold sticky top-0 z-10">
+                        <tr>
+                          <th className="px-3 py-2.5 text-left w-12">#</th>
+                          <th className="px-3 py-2.5 text-left w-24">Date</th>
+                          <th className="px-3 py-2.5 text-left">Description / Narrative</th>
+                          <th className="px-3 py-2.5 text-left w-24">Reference</th>
+                          <th className="px-3 py-2.5 text-right w-28">Debit ({currCode})</th>
+                          <th className="px-3 py-2.5 text-right w-28">Credit ({currCode})</th>
+                          <th className="px-3 py-2.5 text-right w-28">Balance ({currCode})</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {extractedRows.map((r, idx) => (
+                          <tr key={r.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="px-3 py-2 font-mono text-slate-400 text-[11px]">{idx + 1}</td>
+                            <td className="px-3 py-2 font-mono text-slate-600">{r.date}</td>
+                            <td className="px-3 py-2 font-medium text-slate-900">{r.desc}</td>
+                            <td className="px-3 py-2 font-mono text-slate-500 text-[11px]">{r.ref}</td>
+                            <td className="px-3 py-2 text-right font-mono text-slate-700">
+                              {r.debit ? Number(r.debit).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono text-emerald-700 font-semibold">
+                              {r.credit ? Number(r.credit).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">
+                              {Number(r.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
 
                 {/* Footer Totals Banner */}
                 <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs font-bold text-slate-800">
-                  <span>Totals ({extractedRows.length} Entries)</span>
-                  <div className="flex items-center gap-6 font-mono">
-                    <span className="text-slate-700">Debits: {formatCurrency(totalDebits, firm?.currency)}</span>
-                    <span className="text-emerald-700">Credits: {formatCurrency(totalCredits, firm?.currency)}</span>
-                    <span className="text-indigo-700">Net: {formatCurrency(netMovement, firm?.currency)}</span>
-                  </div>
+                  {conversionMode === 'document' && docData ? (
+                    <div className="flex items-center gap-2 text-indigo-700">
+                      <CheckCircle2 size={14} className="text-emerald-600" />
+                      <span>Original Format &amp; Column Arrangement Preserved ({docData.allGridRows.length} Rows Aligned)</span>
+                    </div>
+                  ) : (
+                    <>
+                      <span>Totals ({extractedRows.length} Entries)</span>
+                      <div className="flex items-center gap-6 font-mono">
+                        <span className="text-slate-700">Debits: {formatCurrency(totalDebits, firm?.currency)}</span>
+                        <span className="text-emerald-700">Credits: {formatCurrency(totalCredits, firm?.currency)}</span>
+                        <span className="text-indigo-700">Net: {formatCurrency(netMovement, firm?.currency)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -1007,23 +860,27 @@ export default function PdfConverterWorkbench({ initialMode = 'pdf-excel', onMod
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-900 space-y-1">
                   <span className="font-bold block flex items-center gap-1.5">
                     <FileSpreadsheet size={15} />
-                    <span>Microsoft Excel (.xlsx) Calculation Structure</span>
+                    <span>High-Fidelity Microsoft Excel (.xlsx) Calculation Structure</span>
                   </span>
                   <p className="text-[11px] text-emerald-700 leading-relaxed">
-                    This file will be generated with 2 synchronized worksheets: <strong>Sheet 1: Extracted Statement</strong> (with cell formulas and auto-calculated totals) and <strong>Sheet 2: Bank Reconciliation</strong> (ready for audit lead schedule WP-002).
+                    Preserves original document layout, multi-column tables, and numeric financial values. Cells with numbers are converted to actual Excel numeric types (enabling formulas and SUM calculations) while text codes and dates remain formatted.
                   </p>
                 </div>
 
                 <div className="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-2">
-                  <span className="font-bold text-slate-800 block text-xs">Spreadsheet Sheets in Export:</span>
+                  <span className="font-bold text-slate-800 block text-xs">Worksheets Generated in Workbook:</span>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-white p-3 rounded border border-slate-200 space-y-1">
-                      <span className="font-bold text-slate-900 block">Sheet 1: "Extracted Statement"</span>
-                      <p className="text-[11px] text-slate-500">{extractedRows.length} rows with columns Date, Narrative, Reference, Debit, Credit, Running Balance.</p>
+                      <span className="font-bold text-slate-900 block">Sheet 1: "Document Layout"</span>
+                      <p className="text-[11px] text-slate-500">
+                        {docData ? `${docData.allGridRows.length} rows across ${docData.numPages} pages with auto-fitted column widths.` : 'Page-by-page table and layout.'}
+                      </p>
                     </div>
                     <div className="bg-white p-3 rounded border border-slate-200 space-y-1">
-                      <span className="font-bold text-slate-900 block">Sheet 2: "Reconciliation Ledger"</span>
-                      <p className="text-[11px] text-slate-500">Audit testing template with columns for GL matching, audit tick marks, and partner sign-off.</p>
+                      <span className="font-bold text-slate-900 block">Sheet 2: "Structured Table"</span>
+                      <p className="text-[11px] text-slate-500">
+                        {docData ? `${docData.columnHeaders.length} detected columns ready for pivot tables or ledger processing.` : 'Clean matrix with detected column headers.'}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1045,10 +902,10 @@ export default function PdfConverterWorkbench({ initialMode = 'pdf-excel', onMod
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-900 space-y-1">
                   <span className="font-bold block flex items-center gap-1.5">
                     <FileText size={15} />
-                    <span>Microsoft Word (.doc) Formatted Layout</span>
+                    <span>Microsoft Word (.doc) Preserved Layout</span>
                   </span>
                   <p className="text-[11px] text-blue-700 leading-relaxed">
-                    Preserves clean tabular document layout, client header branding, metadata subtitle, and signature sign-off footer compatible with MS Word 2016-2024 & Office 365.
+                    Preserves the document's original headings, page sections, and tables without flattening or reshaping. Compatible with MS Word 2016-2024 &amp; Office 365.
                   </p>
                 </div>
 
@@ -1060,7 +917,11 @@ export default function PdfConverterWorkbench({ initialMode = 'pdf-excel', onMod
                     Entity: {activeClient?.name || documentMetadata.client} &bull; Converted: {new Date().toLocaleDateString('en-ZA')}
                   </p>
                   <div className="p-2 bg-slate-50 rounded border border-slate-200 font-mono text-[10px]">
-                    Table contains {extractedRows.length} verified rows formatted with Calibri 10pt and shaded alternating table rows.
+                    {docData ? (
+                      <span>Preserved {docData.allGridRows.length} rows across {docData.numPages} pages with {docData.columnHeaders.length} columns.</span>
+                    ) : (
+                      <span>Table contains {extractedRows.length} verified rows formatted with Calibri 10pt.</span>
+                    )}
                   </div>
                 </div>
 
@@ -1081,23 +942,23 @@ export default function PdfConverterWorkbench({ initialMode = 'pdf-excel', onMod
                 <div className="p-3 bg-purple-50 border border-purple-200 rounded-md text-purple-900 space-y-1">
                   <span className="font-bold block flex items-center gap-1.5">
                     <Presentation size={15} />
-                    <span>PowerPoint Executive Presentation Slides</span>
+                    <span>PowerPoint Presentation Slide Deck</span>
                   </span>
                   <p className="text-[11px] text-purple-700 leading-relaxed">
-                    Formats audit summaries, inflows/outflows, and high-level banking statistics into presentation slides for audit committees and executive directors.
+                    Converts each page of the document into a high-impact presentation slide for board meetings and audit committees.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-4 bg-slate-900 text-white rounded-lg text-center space-y-2">
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-400">Slide 1: Title Deck</span>
-                    <p className="text-xs font-bold truncate">{activeClient?.name}</p>
-                    <span className="text-[10px] text-slate-400 block">Audit & Financial Statement Review</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-400">Slide 1: Cover Slide</span>
+                    <p className="text-xs font-bold truncate">{documentMetadata.title.replace(/\.[^.]+$/, '')}</p>
+                    <span className="text-[10px] text-slate-400 block">{activeClient?.name || documentMetadata.client}</span>
                   </div>
                   <div className="p-4 bg-white border border-slate-200 rounded-lg text-center space-y-2">
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Slide 2: Movements</span>
-                    <p className="text-xs font-bold text-slate-800">Net: {formatCurrency(netMovement, firm?.currency)}</p>
-                    <span className="text-[10px] text-emerald-600 block">Inflows: {formatCurrency(totalCredits, firm?.currency)}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Pages Converted</span>
+                    <p className="text-xs font-bold text-slate-800">{docData?.numPages || 1} Document Slides</p>
+                    <span className="text-[10px] text-emerald-600 block">Preserved Tables &amp; Text</span>
                   </div>
                 </div>
 

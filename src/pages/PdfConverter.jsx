@@ -14,6 +14,13 @@ import { useAppStore } from '@/store/appStore'
 import { saveToClientFolder, CLIENT_SUBFOLDERS, openClientFolderInExplorer } from '@/utils/clientStorage'
 import FileActionBar from '@/components/common/FileActionBar'
 import PdfConverterWorkbench from '@/components/pdf/PdfConverterWorkbench'
+import {
+  extractHighFidelityPdf,
+  exportToExcelHighFidelity,
+  exportToWordHighFidelity,
+  exportToPowerPointHighFidelity,
+  escapeHtml
+} from '@/utils/pdfExtractor'
 
 if (pdfjsLib?.GlobalWorkerOptions) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker || './pdf.worker.min.mjs'
@@ -129,216 +136,29 @@ async function extractPdfPages(file) {
 }
 
 /**
- * Convert PDF to Excel Workbook (.xlsx)
- * Preserves financial numbers, columns and formats.
+ * Convert PDF to Excel Workbook (.xlsx) with High-Fidelity Table and Column Preservation
  */
 async function convertPdfToExcelWorkbook(file, clientName) {
-  const pages = await extractPdfPages(file)
-  const wb = XLSX.utils.book_new()
-
-  // Sheet 1: Main Extracted Data
-  const sheetRows = [
-    ['Provident Accounting & Audit — Extracted Financial Schedule'],
-    [`Client Entity: ${clientName || 'General Client'}`],
-    [`Source PDF: ${file.name}`],
-    [`Extraction Date: ${new Date().toLocaleString('en-ZA')}`],
-    [],
-  ]
-
-  pages.forEach((p) => {
-    sheetRows.push([`--- PAGE ${p.pageNumber} ---`])
-    p.rows.forEach(row => {
-      // Convert numeric looking strings to actual numbers
-      const parsedRow = row.map(val => {
-        const cleaned = val.replace(/,/g, '').replace(/[R$€£]/g, '').trim()
-        if (/^-?\d+(\.\d+)?$/.test(cleaned) && cleaned.length < 15) {
-          return parseFloat(cleaned)
-        }
-        return val
-      })
-      sheetRows.push(parsedRow)
-    })
-    sheetRows.push([])
-  })
-
-  const ws = XLSX.utils.aoa_to_sheet(sheetRows)
-
-  // Auto calculate column widths
-  const colWidths = []
-  sheetRows.forEach(row => {
-    row.forEach((cell, colIndex) => {
-      const len = String(cell || '').length
-      colWidths[colIndex] = Math.max(colWidths[colIndex] || 12, Math.min(len + 3, 50))
-    })
-  })
-  ws['!cols'] = colWidths.map(w => ({ wch: w }))
-
-  XLSX.utils.book_append_sheet(wb, ws, 'Extracted Data')
-
-  // Sheet 2: Bank Recon Helper
-  const reconRows = [
-    ['Bank Reconciliation Verification Sheet'],
-    ['Source File:', file.name],
-    ['Client:', clientName || 'Provident Client'],
-    [],
-    ['Date', 'Transaction Description', 'Reference', 'Debit Amount', 'Credit Amount', 'Running Balance', 'Audit Verified'],
-  ]
-
-  pages.forEach(p => {
-    p.rows.forEach(r => {
-      if (r.length >= 3) {
-        reconRows.push([
-          r[0] || '',
-          r[1] || '',
-          r[2] || '',
-          r[3] || '',
-          r[4] || '',
-          r[5] || '',
-          'Pending'
-        ])
-      }
-    })
-  })
-
-  const wsRecon = XLSX.utils.aoa_to_sheet(reconRows)
-  wsRecon['!cols'] = [{ wch: 14 }, { wch: 35 }, { wch: 18 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 16 }]
-  XLSX.utils.book_append_sheet(wb, wsRecon, 'Bank Reconciliation')
-
-  return XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+  const docData = await extractHighFidelityPdf(file)
+  return exportToExcelHighFidelity({ docData, clientName, currCode: 'ZAR' })
 }
 
 /**
- * Convert PDF to Microsoft Word Document (.doc)
- * Generates an HTML-based Office Word Document that MS Word renders with 100% table layout.
+ * Convert PDF to Microsoft Word Document (.doc) preserving original headings and multi-column tables
  */
 async function convertPdfToWordDocument(file, clientName) {
-  const pages = await extractPdfPages(file)
-
-  let html = `<!DOCTYPE html>
-<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-<head>
-<meta charset='utf-8'>
-<title>${file.name} - Converted Document</title>
-<style>
-  body { font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #1e293b; line-height: 1.5; margin: 30px; }
-  h1 { font-size: 18pt; color: #0f172a; border-bottom: 2px solid #5b5fc7; padding-bottom: 4px; margin-bottom: 12px; }
-  .subtitle { font-size: 10pt; color: #64748b; margin-bottom: 20px; }
-  .page-box { margin-bottom: 30px; page-break-after: always; }
-  .page-badge { display: inline-block; background-color: #f1f5f9; color: #475569; font-weight: bold; font-size: 9pt; padding: 2px 8px; border-radius: 4px; margin-bottom: 10px; }
-  table { border-collapse: collapse; width: 100%; margin-top: 10px; margin-bottom: 15px; }
-  th, td { border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 10pt; text-align: left; }
-  th { background-color: #f8fafc; font-weight: bold; }
-  tr:nth-child(even) td { background-color: #fcfcfc; }
-  .footer { font-size: 9pt; color: #94a3b8; text-align: center; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 8px; }
-</style>
-</head>
-<body>
-  <h1>${file.name.replace(/\.[^.]+$/, '')}</h1>
-  <div class="subtitle">
-    <strong>Client Entity:</strong> ${clientName || 'General Client'} &bull;
-    <strong>Converted:</strong> ${new Date().toLocaleString('en-ZA')} &bull;
-    <strong>Application:</strong> Provident Accounting &amp; Audit Suite
-  </div>
-`
-
-  pages.forEach(p => {
-    html += `\n<div class="page-box">\n<span class="page-badge">Page ${p.pageNumber}</span>\n`
-    if (p.rows.length > 0) {
-      html += `<table>\n`
-      p.rows.forEach((row, ri) => {
-        html += `  <tr>\n`
-        row.forEach(cell => {
-          if (ri === 0) {
-            html += `    <th>${escapeHtml(cell)}</th>\n`
-          } else {
-            html += `    <td>${escapeHtml(cell)}</td>\n`
-          }
-        })
-        html += `  </tr>\n`
-      })
-      html += `</table>\n`
-    } else {
-      html += `<p>${escapeHtml(p.rawText)}</p>\n`
-    }
-    html += `</div>\n`
-  })
-
-  html += `
-  <div class="footer">
-    Provident Financial Consultants &bull; Converted with Provident Document Processing Engine
-  </div>
-</body>
-</html>`
-
+  const docData = await extractHighFidelityPdf(file)
+  const html = exportToWordHighFidelity({ docData, clientName, currCode: 'ZAR' })
   const encoder = new TextEncoder()
   return encoder.encode(html)
 }
 
 /**
- * Convert PDF to PowerPoint Slide Deck HTML/Presentation
+ * Convert PDF to PowerPoint Slide Deck HTML preserving page-by-page slides
  */
 async function convertPdfToPowerPoint(file, clientName) {
-  const pages = await extractPdfPages(file)
-
-  let html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>${file.name} - Slide Presentation</title>
-<style>
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; margin: 0; padding: 20px; color: white; }
-  .slide { background: white; color: #1e293b; width: 900px; height: 506px; margin: 20px auto; padding: 40px; box-sizing: border-box; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); page-break-after: always; position: relative; }
-  .slide-header { border-bottom: 3px solid #5b5fc7; padding-bottom: 10px; margin-bottom: 20px; }
-  .slide-title { font-size: 20pt; font-weight: bold; color: #0f172a; margin: 0; }
-  .slide-sub { font-size: 11pt; color: #64748b; margin-top: 4px; }
-  .slide-content { font-size: 11pt; max-height: 330px; overflow-y: auto; }
-  table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-  th, td { border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10pt; text-align: left; }
-  th { background-color: #f1f5f9; font-weight: bold; }
-  .slide-footer { position: absolute; bottom: 15px; left: 40px; right: 40px; font-size: 9pt; color: #94a3b8; display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; padding-top: 6px; }
-</style>
-</head>
-<body>
-`
-
-  pages.forEach(p => {
-    html += `
-  <div class="slide">
-    <div class="slide-header">
-      <h2 class="slide-title">${clientName || 'Provident Client'} — Audit Review</h2>
-      <div class="slide-sub">${file.name} &bull; Page ${p.pageNumber} of ${pages.length}</div>
-    </div>
-    <div class="slide-content">
-`
-    if (p.rows.length > 0) {
-      html += `      <table>\n`
-      p.rows.slice(0, 10).forEach((row, ri) => {
-        html += `        <tr>\n`
-        row.forEach(cell => {
-          if (ri === 0) {
-            html += `          <th>${escapeHtml(cell)}</th>\n`
-          } else {
-            html += `          <td>${escapeHtml(cell)}</td>\n`
-          }
-        })
-        html += `        </tr>\n`
-      })
-      html += `      </table>\n`
-      if (p.rows.length > 10) {
-        html += `      <p style="font-size: 9pt; color: #64748b; margin-top: 6px;">+ ${p.rows.length - 10} additional rows in source data</p>\n`
-      }
-    }
-    html += `
-    </div>
-    <div class="slide-footer">
-      <span>Provident Financial Consultants</span>
-      <span>Slide ${p.pageNumber}</span>
-    </div>
-  </div>
-`
-  })
-
-  html += `</body>\n</html>`
+  const docData = await extractHighFidelityPdf(file)
+  const html = exportToPowerPointHighFidelity({ docData, clientName, currCode: 'ZAR' })
   const encoder = new TextEncoder()
   return encoder.encode(html)
 }
@@ -441,13 +261,7 @@ async function convertWordTextToPdf(file, clientName) {
   return await pdfDoc.save()
 }
 
-function escapeHtml(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+
 
 function downloadBlob(data, filename, mimeType) {
   const blob = new Blob([data], { type: mimeType })
