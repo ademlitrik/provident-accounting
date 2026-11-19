@@ -176,6 +176,31 @@ export default function TrialBalance() {
         </div>
       </div>
 
+      {/* ── Imbalance Warning Banner ── */}
+      {!isBalanced && (
+        <div className="flex items-start gap-3 p-4 bg-rose-50 border border-rose-200 rounded-lg text-sm text-rose-800 print:hidden">
+          <AlertTriangle size={20} className="text-rose-500 shrink-0 mt-0.5" />
+          <div>
+            <div className="font-bold text-rose-900">Trial Balance Is NOT Balanced</div>
+            <div className="text-xs mt-1">
+              The total debits ({formatCurrency(totalDebit, firm?.currency)}) do not equal total credits ({formatCurrency(totalCredit, firm?.currency)}).
+              Difference: <strong>{formatCurrency(diff, firm?.currency)}</strong>.
+              Financial statements generated from this trial balance will be inaccurate.
+              Please review your journal entries and account postings to resolve this imbalance before proceeding.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Balance Status Summary ── */}
+      {isBalanced && (
+        <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 print:hidden">
+          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+          <span className="font-semibold">Trial Balance is in balance.</span>
+          <span>Total Debits = Total Credits = {formatCurrency(totalDebit, firm?.currency)} — Ready to generate financial statements.</span>
+        </div>
+      )}
+
       {/* Trial Balance Table */}
       <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-xs print:border-none print:shadow-none">
         <table className="w-full text-xs">
