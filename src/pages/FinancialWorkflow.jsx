@@ -44,9 +44,9 @@ export default function FinancialWorkflow() {
 
   const selectedClient = clients.find(c => c.id === selectedClientId) || clients[0]
 
-  const clientAccounts = accounts.filter(a => a.clientId === selectedClientId)
-  const totalDebit = clientAccounts.reduce((s, a) => s + (a.debit || (a.type === 'Asset' || a.type === 'Expense' ? a.balance : 0)), 0)
-  const totalCredit = clientAccounts.reduce((s, a) => s + (a.credit || (['Liability', 'Equity', 'Income'].includes(a.type) ? a.balance : 0)), 0)
+  const clientAccounts = (accounts || []).filter(a => a && a.clientId === selectedClientId)
+  const totalDebit = clientAccounts.reduce((s, a) => s + (a.debit || (a.type === 'Asset' || a.type === 'Expense' ? Math.max(0, a.balance || 0) : 0)), 0)
+  const totalCredit = clientAccounts.reduce((s, a) => s + (a.credit || (['Liability', 'Equity', 'Income'].includes(a.type) ? Math.abs(a.balance || 0) : 0)), 0)
   const diff = Math.abs(totalDebit - totalCredit)
   const tbBalanced = diff < 0.01
 

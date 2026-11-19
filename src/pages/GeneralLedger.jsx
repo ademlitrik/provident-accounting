@@ -35,13 +35,16 @@ export default function GeneralLedger() {
 
   // --------‑ Memoised search filter -----
   const filtered = useMemo(() => {
-    const lowered = search.toLowerCase()
-    return journals.filter(e =>
-      e.description.toLowerCase().includes(lowered) ||
-      e.id.toLowerCase().includes(lowered) ||
-      e.debit.toLowerCase().includes(lowered) ||
-      e.credit.toLowerCase().includes(lowered)
-    )
+    const lowered = (search || '').toLowerCase()
+    return (journals || []).filter(e => {
+      if (!e) return false
+      return (
+        String(e.description || '').toLowerCase().includes(lowered) ||
+        String(e.id || '').toLowerCase().includes(lowered) ||
+        String(e.debit || '').toLowerCase().includes(lowered) ||
+        String(e.credit || '').toLowerCase().includes(lowered)
+      )
+    })
   }, [journals, search])
 
   const [saveStatus, setSaveStatus] = useState('')

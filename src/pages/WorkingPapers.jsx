@@ -32,10 +32,10 @@ export default function WorkingPapers() {
   })
 
   // Filter working papers for active client, fallback to all if unassigned
-  const clientPapers = workingPapers.filter(p => !p.clientId || p.clientId === activeClientId)
-  const clientDocs = documents.filter(d => !d.clientId || d.clientId === activeClientId)
+  const clientPapers = (workingPapers || []).filter(p => p && (!p.clientId || p.clientId === activeClientId))
+  const clientDocs = (documents || []).filter(d => d && (!d.clientId || d.clientId === activeClientId))
 
-  const completeCount = clientPapers.filter(p => p.status === 'Complete').length
+  const completeCount = clientPapers.filter(p => p && p.status === 'Complete').length
   const totalCount = clientPapers.length
   const pct = totalCount > 0 ? Math.round((completeCount / totalCount) * 100) : 0
 

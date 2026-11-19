@@ -9,8 +9,10 @@ import {
 } from 'lucide-react'
 import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib'
 import * as pdfjsLib from 'pdfjs-dist'
-// configure pdfjs worker (use CDN matching installed version)
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+if (pdfjsLib?.GlobalWorkerOptions) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker || './pdf.worker.min.mjs'
+}
 import { useAccountingStore } from '@/store/accountingStore'
 import { useAuthStore } from '@/store/authStore'
 import PdfConverterWorkbench from '@/components/pdf/PdfConverterWorkbench'
@@ -67,8 +69,8 @@ export default function PdfUnlocker({ defaultTool }) {
   const documents = useAccountingStore(s => s.documents)
   const addRecentDocument = useAccountingStore(s => s.addRecentDocument)
 
-  const activeClient = clients.find(c => c.id === activeClientId) || clients[0]
-  const clientDocs = documents.filter(d => d.clientId === activeClientId)
+  const activeClient = (clients && clients.find(c => c && c.id === activeClientId)) || (clients && clients[0]) || { name: 'Acme Corporation (Pty) Ltd', fyEnd: '31 Dec 2024' }
+  const clientDocs = (documents || []).filter(d => d && d.clientId === activeClientId)
 
   // ── 0. EDIT PDF STATE ─────────────────────────────────────────
   const [editorSubTool, setEditorSubTool] = useState('tickmark') // 'tickmark', 'text', 'callout', 'header_footer'

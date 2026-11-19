@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import TitleBar from './TitleBar'
 import Sidebar from './Sidebar'
 import AboutModal from '@/components/common/AboutModal'
+import ErrorBoundary from '@/components/common/ErrorBoundary'
 import { Database, ShieldCheck, Info } from 'lucide-react'
 import afrovisionLogo from '@/assets/afrovision_logo.png'
 import { useAccountingStore } from '@/store/accountingStore'
@@ -11,6 +12,7 @@ export default function AppShell() {
   const [isAboutOpen, setIsAboutOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
   const navigate = useNavigate()
+  const location = useLocation()
   const restoreFileInputRef = useRef(null)
 
   const activeClientId = useAccountingStore(s => s.activeClientId)
@@ -87,7 +89,9 @@ export default function AppShell() {
           <Sidebar onOpenAbout={() => setIsAboutOpen(true)} />
         </div>
         <main className="flex-1 overflow-y-auto bg-slate-50/70 p-4 flex flex-col min-h-0 print:p-0 print:bg-white print:overflow-visible print:h-auto print:block">
-          <Outlet />
+          <ErrorBoundary key={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 
@@ -140,9 +144,6 @@ export default function AppShell() {
           <span>{toastMessage}</span>
         </div>
       )}
-
-      {/* Global About Modal */}
-      <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
 
       {/* Global About Modal */}
       <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />

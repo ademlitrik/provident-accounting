@@ -31,19 +31,25 @@ export default function TrialBalance() {
   const activeClientId = useAccountingStore(s => s.activeClientId);
   const clients = useAccountingStore(s => s.clients);
   const allAccounts = useAccountingStore(s => s.accounts);
-  const accounts = allAccounts.filter(a => a.clientId === activeClientId);
-  const activeClient = clients.find(c => c.id === activeClientId) || clients[0];
+  const accounts = (allAccounts || []).filter(a => a && a.clientId === activeClientId);
+  const activeClient = (clients || []).find(c => c && c.id === activeClientId) || (clients && clients[0]);
   const currCode = getCurrencyCode(firm?.currency);
 
   // Use accounts from store if available, or fallback
   const tbData = accounts && accounts.length > 0
-    ? accounts.map(a => ({
-        code: a.code,
-        account: a.name,
-        type: a.type,
-        debit: a.debit || (a.type === 'Asset' || a.type === 'Expense' ? a.balance : 0),
-        credit: a.credit || (a.type === 'Liability' || a.type === 'Equity' || a.type === 'Income' ? a.balance : 0)
-      }))
+    ? accounts.map(a => {
+        const bal = a.balance || 0
+        const isDr = a.type === 'Asset' || a.type === 'Expense'
+        const calcDebit = a.debit !== undefined ? a.debit : (isDr ? (bal >= 0 ? bal : 0) : 0)
+        const calcCredit = a.credit !== undefined ? a.credit : (!isDr ? Math.abs(bal) : (bal < 0 ? Math.abs(bal) : 0))
+        return {
+          code: a.code,
+          account: a.name || 'Account',
+          type: a.type || 'Asset',
+          debit: calcDebit,
+          credit: calcCredit
+        }
+      })
     : FALLBACK_TB
 
   const totalDebit = tbData.reduce((s, r) => s + (r.debit || 0), 0)

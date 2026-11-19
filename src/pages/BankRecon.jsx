@@ -19,13 +19,13 @@ export default function BankRecon() {
 
   // Filter bank items for active client
   const items = useMemo(() =>
-    allBankItems.filter(i => i.clientId === activeClientId),
+    (allBankItems || []).filter(i => i && i.clientId === activeClientId),
     [allBankItems, activeClientId]
   )
 
-  const matched = items.filter(i => i.matched)
-  const unmatched = items.filter(i => !i.matched)
-  const totalBank = items.reduce((s, i) => s + i.amount, 0)
+  const matched = items.filter(i => i && i.matched)
+  const unmatched = items.filter(i => i && !i.matched)
+  const totalBank = items.reduce((s, i) => s + (i.amount || 0), 0)
   const reconPct = items.length > 0 ? Math.round((matched.length / items.length) * 100) : 100
 
   const handleMatch = (item) => {

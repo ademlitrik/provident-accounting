@@ -34,10 +34,12 @@ export default function ChartOfAccounts() {
   const activeClientId = useAccountingStore(s => s.activeClientId)
   const clients = useAccountingStore(s => s.clients)
   const activeClient = clients.find(c => c.id === activeClientId) || clients[0]
-  const filteredAccounts = accounts.filter(a => a.clientId === activeClientId)
+  const filteredAccounts = (accounts || []).filter(a => a && a.clientId === activeClientId)
   const filtered = filteredAccounts.filter(a => {
+    if (!a) return false
     if (activeFilter !== 'All' && a.type !== activeFilter) return false
-    return a.name.toLowerCase().includes(search.toLowerCase()) || a.code.includes(search)
+    const s = (search || '').toLowerCase()
+    return (a.name || '').toLowerCase().includes(s) || String(a.code || '').includes(search || '')
   })
 
   const handleExport = () => {

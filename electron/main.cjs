@@ -320,7 +320,7 @@ function createWindow() {
     frame: false, // Use custom React title bar instead of native Windows title bar
     autoHideMenuBar: true, // Hide native menu bar unless Alt is pressed
     title: 'Provident Accounting & Audit — South Africa Practice Suite',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8fafc',
     icon: path.join(__dirname, '../public/icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

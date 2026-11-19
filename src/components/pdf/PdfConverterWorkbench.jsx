@@ -8,6 +8,7 @@ import {
   Printer, Save, Check
 } from 'lucide-react'
 import * as pdfjsLib from 'pdfjs-dist'
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import * as XLSX from 'xlsx'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { useAccountingStore, formatCurrency, getCurrencyCode } from '@/store/accountingStore'
@@ -15,8 +16,10 @@ import { useAuthStore } from '@/store/authStore'
 import { useAppStore } from '@/store/appStore'
 import { saveToClientFolder, CLIENT_SUBFOLDERS, openClientFolderInExplorer } from '@/utils/clientStorage'
 
-// Configure pdfjs worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+// Configure pdfjs worker with bundled asset (offline support)
+if (pdfjsLib?.GlobalWorkerOptions) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker || './pdf.worker.min.mjs'
+}
 
 const SAMPLE_BANK_STATEMENT = {
   fileName: 'FNB_Commercial_Bank_Statement_Oct2024.pdf',

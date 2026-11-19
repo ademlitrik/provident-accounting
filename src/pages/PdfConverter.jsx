@@ -6,6 +6,7 @@ import {
   HardDrive, Sparkles, FolderOpen
 } from 'lucide-react'
 import * as pdfjsLib from 'pdfjs-dist'
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import * as XLSX from 'xlsx'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import { useAccountingStore } from '@/store/accountingStore'
@@ -14,7 +15,9 @@ import { saveToClientFolder, CLIENT_SUBFOLDERS, openClientFolderInExplorer } fro
 import FileActionBar from '@/components/common/FileActionBar'
 import PdfConverterWorkbench from '@/components/pdf/PdfConverterWorkbench'
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+if (pdfjsLib?.GlobalWorkerOptions) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker || './pdf.worker.min.mjs'
+}
 
 const CONVERSIONS = [
   {
@@ -472,7 +475,7 @@ export default function PdfConverter() {
   const activeClientId = useAccountingStore(s => s.activeClientId)
   const clients = useAccountingStore(s => s.clients)
   const addRecentDocument = useAccountingStore(s => s.addRecentDocument)
-  const activeClient = clients.find(c => c.id === activeClientId) || clients[0]
+  const activeClient = (clients && clients.find(c => c && c.id === activeClientId)) || (clients && clients[0]) || { name: 'Acme Corporation (Pty) Ltd' }
 
   const conv = CONVERSIONS.find(c => c.id === activeConversion)
 

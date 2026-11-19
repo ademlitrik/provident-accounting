@@ -1,4 +1,4 @@
-﻿import { X, ExternalLink, ShieldCheck, CheckCircle2, Laptop, Award, Code2, Globe } from 'lucide-react'
+import { X, ExternalLink, ShieldCheck, CheckCircle2, Laptop, Award, Code2, Globe } from 'lucide-react'
 import afrovisionLogo from '@/assets/afrovision_logo.png'
 import providentLogo from '@/assets/provident_logo_raw.png'
 
@@ -37,7 +37,7 @@ export default function AboutModal({ isOpen, onClose }) {
                 Provident Accounting & Audit
               </h2>
               <p className="text-xs text-slate-300 mt-0.5">
-                Version 1.1.0 (Production Release) Â· Windows 11 & Web Suite
+                Version 1.1.3 (Production Release) · Windows 11 & Web Suite
               </p>
             </div>
           </div>

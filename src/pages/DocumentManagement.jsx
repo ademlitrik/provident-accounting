@@ -16,7 +16,7 @@ export default function DocumentManagement() {
   const activeClientId = useAccountingStore(s => s.activeClientId)
   const clients = useAccountingStore(s => s.clients)
 
-  const activeClient = clients.find(c => c.id === activeClientId) || clients[0]
+  const activeClient = (clients && clients.find(c => c && c.id === activeClientId)) || (clients && clients[0]) || { name: 'Acme Corporation (Pty) Ltd' }
 
   const [search, setSearch] = useState('')
   const [selectedDocId, setSelectedDocId] = useState(null)
@@ -29,12 +29,16 @@ export default function DocumentManagement() {
   const isDark = theme === 'Dark Gray' || theme === 'Black'
 
   // Filter documents by active client, or fallback to all if none explicitly tagged
-  const clientDocs = documents.filter(d => !d.clientId || d.clientId === activeClientId)
-  const filtered = clientDocs.filter(d =>
-    d.name.toLowerCase().includes(search.toLowerCase()) ||
-    (d.category && d.category.toLowerCase().includes(search.toLowerCase())) ||
-    (d.wpRef && d.wpRef.toLowerCase().includes(search.toLowerCase()))
-  )
+  const clientDocs = (documents || []).filter(d => d && (!d.clientId || d.clientId === activeClientId))
+  const filtered = clientDocs.filter(d => {
+    if (!d) return false
+    const s = (search || '').toLowerCase()
+    return (
+      (d.name || '').toLowerCase().includes(s) ||
+      (d.category && d.category.toLowerCase().includes(s)) ||
+      (d.wpRef && d.wpRef.toLowerCase().includes(s))
+    )
+  })
 
   const selectedDoc = filtered.find(d => d.id === selectedDocId) || filtered[0] || null
 

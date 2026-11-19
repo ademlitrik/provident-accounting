@@ -17,9 +17,15 @@ export default function Clients() {
   const setActiveClientId = useAccountingStore(s => s.setActiveClientId)
   const addClient = useAccountingStore(s => s.addClient)
   const updateClient = useAccountingStore(s => s.updateClient)
+  const deleteClient = useAccountingStore(s => s.deleteClient)
   const addAccount = useAccountingStore(s => s.addAccount)
   const addWorkingPaper = useAccountingStore(s => s.addWorkingPaper)
   const [initTemplate, setInitTemplate] = useState(true)
+
+  const [search, setSearch] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingClient, setEditingClient] = useState(null)
+  const [deletingClient, setDeletingClient] = useState(null)
 
   const [isAiGenerating, setIsAiGenerating] = useState(false)
   const [aiIndustryPrompt, setAiIndustryPrompt] = useState('')
@@ -108,11 +114,15 @@ Output strictly raw JSON without markdown or code fences.`
 
   const logoInputRef = useRef(null)
 
-  const filtered = clients.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.contact.toLowerCase().includes(search.toLowerCase()) ||
-    c.type.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = (clients || []).filter(c => {
+    if (!c) return false
+    const s = (search || '').toLowerCase()
+    return (
+      (c.name || '').toLowerCase().includes(s) ||
+      (c.contact || '').toLowerCase().includes(s) ||
+      (c.type || '').toLowerCase().includes(s)
+    )
+  })
 
   const handleOpenAddModal = () => {
     setFormData({
@@ -230,118 +240,146 @@ Output strictly raw JSON without markdown or code fences.`
       </div>
 
       {/* Clients Card Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map(client => {
-          const isActive = client.id === activeClientId
-          return (
-            <div
-              key={client.id}
-              className={`bg-white border rounded-lg p-5 shadow-xs transition-all flex flex-col justify-between relative ${
-                isActive ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm' : 'border-slate-200 hover:border-indigo-200 hover:shadow-sm'
-              }`}
-            >
-              <div>
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    {client.logo ? (
-                      <img src={client.logo} alt="Logo" className="w-10 h-10 object-contain rounded-md border border-slate-200 bg-white p-0.5" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-md bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                        {client.name.substring(0, 2).toUpperCase()}
+      {filtered.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-xl p-12 text-center max-w-md mx-auto space-y-4 shadow-xs">
+          <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto border border-indigo-100">
+            <Building2 size={28} />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm text-slate-800">No Clients Found</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              {search ? `No client entity matches "${search}".` : 'No clients are registered in this practice workspace.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleOpenAddModal}
+            className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-md text-xs font-semibold cursor-pointer shadow-xs transition-colors"
+          >
+            <Plus size={14} />
+            <span>Create New Client Entity</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(client => {
+            if (!client) return null
+            const isActive = client.id === activeClientId
+            const clientName = client.name || 'Unnamed Entity'
+            return (
+              <div
+                key={client.id}
+                onClick={() => setActiveClientId(client.id)}
+                className={`bg-white border rounded-lg p-5 shadow-xs transition-all flex flex-col justify-between relative cursor-pointer ${
+                  isActive ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm' : 'border-slate-200 hover:border-indigo-200 hover:shadow-sm'
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      {client.logo ? (
+                        <img src={client.logo} alt="Logo" className="w-10 h-10 object-contain rounded-md border border-slate-200 bg-white p-0.5" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-md bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                          {clientName.substring(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        {isActive && (
+                          <span className="inline-flex items-center gap-1 bg-indigo-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider mb-0.5">
+                            <FileCheck size={10} /> Active Audit File
+                          </span>
+                        )}
+                        <h3 className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">
+                          {clientName}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openClientFolderInExplorer(clientName)
+                        }}
+                        title={`Open ${clientName} folder on disk`}
+                        className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                      >
+                        <FolderOpen size={13} />
+                      </button>
+                      <button
+                        onClick={(e) => handleOpenEditModal(client, e)}
+                        title="Edit Entity"
+                        className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded transition-colors"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDeletingClient(client)
+                        }}
+                        title="Archive / Remove Entity"
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                      client.status === 'Active'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-amber-50 text-amber-700 border border-amber-200'
+                    }`}>
+                      {client.status || 'Active'}
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      {client.type || 'Audit & Tax'} · FYE: {client.fyEnd || '31 Dec'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs text-slate-600">
+                    <div className="flex items-center gap-2">
+                      <Mail size={12} className="text-slate-400 shrink-0" />
+                      <span className="truncate">{client.email || '—'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone size={12} className="text-slate-400 shrink-0" />
+                      <span>{client.phone || '—'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin size={12} className="text-slate-400 shrink-0" />
+                      <span>{client.location || '—'}</span>
+                    </div>
+                    {client.lastOpened && (
+                      <div className="flex items-center gap-2 text-[10px] text-indigo-600 font-medium pt-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse shrink-0" />
+                        <span>Last worked on: <strong>{client.lastOpened}</strong></span>
                       </div>
                     )}
-                    <div>
-                      {isActive && (
-                        <span className="inline-flex items-center gap-1 bg-indigo-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider mb-0.5">
-                          <FileCheck size={10} /> Active Audit File
-                        </span>
-                      )}
-                      <h3 className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">
-                        {client.name}
-                      </h3>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openClientFolderInExplorer(client.name)
-                      }}
-                      title={`Open ${client.name} folder on disk`}
-                      className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
-                    >
-                      <FolderOpen size={13} />
-                    </button>
-                    <button
-                      onClick={(e) => handleOpenEditModal(client, e)}
-                      title="Edit Entity"
-                      className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded transition-colors"
-                    >
-                      <Edit2 size={13} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeletingClient(client)
-                      }}
-                      title="Archive / Remove Entity"
-                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
-                    >
-                      <Trash2 size={13} />
-                    </button>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                    client.status === 'Active'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : 'bg-amber-50 text-amber-700 border border-amber-200'
-                  }`}>
-                    {client.status}
-                  </span>
-                  <span className="text-[11px] text-slate-500 font-medium">
-                    {client.type} · FYE: {client.fyEnd}
-                  </span>
-                </div>
-
-                <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs text-slate-600">
-                  <div className="flex items-center gap-2">
-                    <Mail size={12} className="text-slate-400 shrink-0" />
-                    <span className="truncate">{client.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone size={12} className="text-slate-400 shrink-0" />
-                    <span>{client.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin size={12} className="text-slate-400 shrink-0" />
-                    <span>{client.location}</span>
-                  </div>
-                  {client.lastOpened && (
-                    <div className="flex items-center gap-2 text-[10px] text-indigo-600 font-medium pt-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse shrink-0" />
-                      <span>Last worked on: <strong>{client.lastOpened}</strong></span>
-                    </div>
-                  )}
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-500 font-medium">{client.accountsCount ?? 15} General Accounts</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleSelectActiveAndNavigate(client.id)
+                    }}
+                    className="text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer hover:underline flex items-center gap-1"
+                  >
+                    <span>Open Working Papers →</span>
+                  </button>
                 </div>
               </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                <span className="text-slate-500 font-medium">{client.accountsCount} General Accounts</span>
-                <button
-                  type="button"
-                  onClick={() => handleSelectActiveAndNavigate(client.id)}
-                  className="text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer hover:underline flex items-center gap-1"
-                >
-                  <span>Open Working Papers →</span>
-                </button>
-              </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Modal: New / Edit Client Entity */}
       {isModalOpen && (

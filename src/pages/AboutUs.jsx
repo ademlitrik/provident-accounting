@@ -17,7 +17,7 @@ export default function AboutUs() {
           </div>
           <div>
             <span className="text-[11px] uppercase font-bold tracking-widest text-indigo-400">
-              South Africa Practice Suite &bull; Version 1.1.0
+              South Africa Practice Suite &bull; Version 1.1.3
             </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-1">
               Provident Accounting &amp; Audit Suite
@@ -84,7 +84,7 @@ export default function AboutUs() {
 
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Software Edition</span>
-            <div className="text-sm font-bold text-slate-900">v1.1.0 Desktop Production</div>
+            <div className="text-sm font-bold text-slate-900">v1.1.3 Desktop Production</div>
             <p className="text-xs text-slate-500 font-mono">Windows 11 x64 Native &bull; Offline Database &bull; Local Storage</p>
           </div>
         </div>
